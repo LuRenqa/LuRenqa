@@ -81,8 +81,10 @@ dsh plugin --profile <profile> add link:<本目录绝对路径>
 桌面客户端的 profile 由宿主管理时，等价做法是在 `~/.dsh/profiles/<profile>` 下建 junction 指向本目录，
 并把包名加进 profile `package.json` 的 `dependencies` 与 `dsh.profile.bundles`。
 
-安装后 **Host 半热加载即生效**（`/dsh-ai-hub/*` 路由、插件行 active）；
-**左侧栏入口属于 Client 半，需要刷新一次页面（或重启客户端）才会出现**。
+安装后 **Host 半热加载即生效**（`/dsh-ai-hub/*` 路由、插件行 active）。
+**左侧栏入口属于 Client 半：桌面客户端需要重启一次 DSH 才会出现** —— 桌面端在宿主启动时把页面注入表
+（含各 Client 插件的启动脚本）缓存下来，装好插件后只刷新页面不会重新收集；重启一次之后，
+以后的开关操作都不再需要重启。网页端（浏览器直接打开 DSH 的 URL）刷新一次页面即可。
 
 ## 数据与配置
 
