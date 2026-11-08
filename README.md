@@ -8,17 +8,32 @@ DeepSeek Harness（DSH）Web 界面右下角的一只常驻桌宠：**Gemini娘*
 
 ![Gemini娘](assets/neko1.png)
 
+## AI娘挂件中心（本仓库插件）
+
+本仓库还带一个管理插件 [`dsh-ai-widget-hub/`](dsh-ai-widget-hub/README.md)：在 DSH 左侧栏增加**一个入口「AI娘」**，
+打开后是一页卡片式的「AI娘挂件中心」，把下面全部 **8 只余额桌宠**集中列出来，每张卡片一个开关，**即时开 / 关**，
+不用再逐个去插件市场里找。
+
+开关走 DSH 的 `pluginManager.setPluginEnabled` **热应用**（无需重启），状态由 DSH 持久化在 profile 的
+`cordis.patch.yml`；本插件自己**不保存任何状态文件**，也不修改任何挂件的代码 / 路由 / 存储。
+
+- 入口：左侧栏「AI娘」（panel id `ai-widgets`）
+- 界面：搜索、全部开启 / 全部关闭、刷新；卡片显示头像 / 版本 / 描述 / 启用状态 / 未安装状态
+- 技术细节、安全栅栏、安装与限制见 [`dsh-ai-widget-hub/README.md`](dsh-ai-widget-hub/README.md)
+
 ## 本仓库内容
 
-| 位置 | 挂件 | 主题 | 路由 |
+| 位置 | 内容 | 主题 | 路由 |
 | --- | --- | --- | --- |
 | 根目录 | **Gemini娘**（`dsh-neko-widget`） | 紫色 | `/dsh-neko/` |
 | [`dsh-kimi-widget/`](dsh-kimi-widget/README.md) | **Kimi娘**（`dsh-kimi-widget`） | 反光银灰 | `/dsh-kimi/` |
 | [`dsh-glm-widget/`](dsh-glm-widget/README.md) | **GLM娘**（`dsh-glm-widget`） | 纯黑 | `/dsh-glm/` |
 | [`dsh-qwen-widget/`](dsh-qwen-widget/README.md) | **千问娘**（`dsh-qwen-widget`） | 浅蓝 | `/dsh-qwen/` |
 | [`dsh-grok-widget/`](dsh-grok-widget/README.md) | **Grok娘**（`dsh-grok-widget`） | 金色 | `/dsh-grok/` |
+| [`dsh-ai-widget-hub/`](dsh-ai-widget-hub/README.md) | **AI娘挂件中心**（`dsh-ai-widget-hub`）—— 统一开关全部 8 只挂件 | 挂件管理面板 | 左侧栏「AI娘」 |
 
-以上挂件功能一致，路由 / 存储 / DOM 全部隔离，可以**同时安装、同时显示**（每只的详细说明见各自目录）。
+以上前 5 行是挂件，功能一致，路由 / 存储 / DOM 全部隔离，可以**同时安装、同时显示**（每只的详细说明见各自目录）；
+最后一行的「AI娘挂件中心」不是挂件本身，而是一个集中管理这 8 只挂件开关的独立插件。
 
 ## 第三方挂件收录（标注原作者）
 
