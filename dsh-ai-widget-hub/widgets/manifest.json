@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-08T15:09:53.451Z",
+  "generatedAt": "2026-11-08T15:26:46.963Z",
   "widgets": [
     {
       "id": "neko",
@@ -85,7 +85,7 @@
       "id": "mimo",
       "entry": "lib/mimo-index.js",
       "moduleName": "dsh-mimo-widget",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "route": "/dsh-mimo/",
       "script": "/dsh-mimo/widget.js",
       "rootClass": ".dshmmv-root",

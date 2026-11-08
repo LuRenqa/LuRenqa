@@ -121,7 +121,7 @@ export const WIDGETS = [
     subtitle: '亮橙 · 双形态',
     accent: '#ff6a00',
     description:
-      '余额 / 今日已用 / 峰谷时段 / 每轮消耗；亮橙主题，点气泡时从日常形态切换为魔女形态；可换角色图、调大小、改气泡与音效。',
+      '余额 / 今日已用 / 峰谷时段 / 每轮消耗；亮橙主题，2 秒内连点三下在「日常 / 魔女」两种形态间切换；可换角色图、调大小、改气泡与音效。',
     moduleName: 'dsh-mimo-widget',
     route: '/dsh-mimo/',
     script: '/dsh-mimo/widget.js',

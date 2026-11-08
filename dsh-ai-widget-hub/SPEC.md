@@ -27,9 +27,9 @@
    `entryId` 恒 null）、`POST /dsh-ai-hub/toggle`（`application:'applied' | 'failed'`）、
    `GET /dsh-ai-hub/icon/<id>.png`。Client 半 UI 与交互不变，仅副标题改为“已内置全部 9 只挂件”。
 6. **首次安装仍需重启一次桌面客户端**（页面注入表在宿主启动时缓存）；之后开关全部即时生效。
-7. **v0.2.1 新增 MIMO娘**（`mimo`，`dsh-mimo-widget` 0.1.0）：亮橙主题（气泡边框 / 气泡文字 / 菜单色块），
-   双形态图片 `assets/mimo1.png`（日常形）与 `assets/mimo2.png`（魔女形）；点角色或气泡打开时切图二，
-   气泡收起切回图一（client `mimoSetBubbleState` + host `/dsh-mimo/image2.png`）。
+7. **v0.2.1 新增 MIMO娘**（`mimo`，`dsh-mimo-widget` 0.1.1）：亮橙主题（气泡边框 / 气泡文字 / 菜单色块），
+   双形态图片 `assets/mimo1.png`（日常形）与 `assets/mimo2.png`（魔女形）；**2 秒内连续点击 3 下**切换一次
+   （图一 ↔ 图二，client `mimoToggleForm` + host `/dsh-mimo/image2.png`）；两图均使用源图自带的透明通道裁切（v0.2.2 修复黑底）。
 
 ## 0. 关键结论（已由 Lead 实测/查证，不要再自行推翻）
 

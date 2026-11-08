@@ -18743,10 +18743,18 @@ function bubblePreviewInto(container, mods, widthPx, opts) {
 //  - 正显示第 1 次点击泡泡:不切换内容,仅重置留存计时
 function mimoClick() {
   try {
+    // 2 秒内连续 3 下 = 切换双形态（这一下不再推进气泡）
+    var mimoNow = Date.now()
+    mimoClickTimes = mimoClickTimes.filter(function (t) { return mimoNow - t <= 2000 })
+    mimoClickTimes.push(mimoNow)
+    if (mimoClickTimes.length >= 3) {
+      mimoClickTimes = []
+      mimoToggleForm()
+      return
+    }
     if (!bubbleOn) return
     if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert')) return // 消耗/预警提醒期间点MIMO娘不动作(点泡泡才关)
     if (!bubbleShown) {
-      mimoSetBubbleState(true)
       bubbleRoundOn = true
       bubbleSeqIdx = 0
       bubbleShowSeqNext()
@@ -18788,31 +18796,32 @@ function bubbleNext() {
     hideBubble()
   } catch (err) {}
 }
-// MIMO 双形态：默认（图一）= assets/mimo1.png；冒泡时（图二）= assets/mimo2.png。
-// 点击气泡打开 → 切到图二；收起 → 切回图一。只对内置默认角色生效，不动用户自定义角色/动态角色。
-function mimoSetBubbleState(open) {
+// MIMO 双形态：默认「日常形态」= assets/mimo1.png，「魔女形态」= assets/mimo2.png。
+// 手势：**2 秒内连续点击 3 下**切换一次（图一 → 图二；再连点 3 下切回图一），与气泡开关无关。
+// 只对内置默认角色生效；用户自定义角色 / 动态角色不参与切换。
+var mimoFormAlt = false
+var mimoClickTimes = []
+function mimoToggleForm() {
   try {
     if (!currentRole || currentRole.id !== 'default') return
-    var raw = ''
-    try { raw = img.getAttribute('src') || '' } catch (err) {}
-    if (!raw) raw = img.src || ''
-    var showingAlt = raw.indexOf('image2.png') >= 0
-    if (showingAlt === !!open) return
-    img.src = open ? IMG2_URL : IMG_URL
+    mimoFormAlt = !mimoFormAlt
+    var url = mimoFormAlt ? IMG2_URL : IMG_URL
+    img.src = url
+    hitReady = false
+    hitFailed = false
+    setupHitTest(url)
   } catch (err) {}
 }
 // —— 覆盖旧实现 ——
 function showBubble() {
   // 通用打开(余额变化等事件):当作“开新轮从第1项”,打断当前手动/随机内容
   if (!bubbleOn) return
-  mimoSetBubbleState(true)
   if (costBubbleActive) return
   bubbleRoundOn = true
   bubbleSeqIdx = 0
   bubbleShowSeqNext()
 }
 function hideBubble() {
-  mimoSetBubbleState(false)
   bubbleClearAll()
   bubbleRoundOn = false
   bubbleSeqIdx = 0
@@ -20174,7 +20183,7 @@ function xkAnimUrl(cry) {
   //   表现为「改了素材但界面没变」，且普通刷新/F5 都无效。改一次素材就把这个号 +1。
   // 注意：这里是**构建期插值**（MOOD_CODE 是模板字符串），所以要用 ${} 而不是裸变量名 ——
   //   裸写变量名会原样进产物，运行时 ReferenceError。
-  return '/dsh-mimo/' + (cry ? 'anim-cry' : 'anim') + '.webp?r=' + xkAnimRes() + '&v=2'
+  return '/dsh-mimo/' + (cry ? 'anim-cry' : 'anim') + '.webp?r=' + xkAnimRes() + '&v=3'
 }
 function xkShowImage(url) {
   img.src = url
