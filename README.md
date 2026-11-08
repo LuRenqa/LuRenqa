@@ -20,6 +20,19 @@ DeepSeek Harness（DSH）Web 界面右下角的一只常驻桌宠：**Gemini娘*
 
 以上挂件功能一致，路由 / 存储 / DOM 全部隔离，可以**同时安装、同时显示**（每只的详细说明见各自目录）。
 
+## 第三方挂件收录（标注原作者）
+
+以下为**第三方作者的 MIT 作品**，原样收录在本仓库，版权归原作者；收录目的仅为个人备份与集中安装，**未作功能性修改**。若原作者不希望被收录，提出后可立即移除。
+
+| 目录 | 挂件 | 原作者 | 原仓库 | 许可 |
+| --- | --- | --- | --- | --- |
+| [`dsh-whale-widget/`](dsh-whale-widget/ATTRIBUTION.md) | DeepSeek娘（小鲸鱼） | [MeteorNOX](https://github.com/MeteorNOX) | [DeepSeek-Balance-Whale-Widget](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget) | MIT |
+| [`dsh-xiaoke-widget/`](dsh-xiaoke-widget/ATTRIBUTION.md) | Claude娘（小克） | [aklnaaw](https://github.com/aklnaaw) | [dsh-xiaoke-widget](https://github.com/aklnaaw/dsh-xiaoke-widget) | MIT（素材 CC BY-NC-SA 4.0） |
+| [`dsh-gpt-niang-widget/`](dsh-gpt-niang-widget/ATTRIBUTION.md) | GPT娘 | [xixingyingmie](https://github.com/xixingyingmie) | [dsh-gpt-niang-widget](https://github.com/xixingyingmie/dsh-gpt-niang-widget) | MIT |
+
+> 本仓库自制的 5 只挂件（Gemini娘 / Kimi娘 / GLM娘 / 千问娘 / Grok娘）均**二创自 MeteorNOX 的上游项目**，
+> 隔离改造底座参考了 [aklnaaw/dsh-xiaoke-widget](https://github.com/aklnaaw/dsh-xiaoke-widget) 的工程结构，在此一并致谢。
+
 ## 功能
 
 - 💰 **余额 / 今日已用**：读取 DSH 凭据里的 `DEEPSEEK_API_KEY`，或复用 DSH 账号登录态；60 秒自动刷新，点角色手动刷新
