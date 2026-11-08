@@ -115,6 +115,19 @@ export const WIDGETS = [
     rootClass: '.dshgnv-root',
     iconFile: 'gptniang.png',
   },
+  {
+    id: 'mimo',
+    title: 'MIMO娘',
+    subtitle: '亮橙 · 双形态',
+    accent: '#ff6a00',
+    description:
+      '余额 / 今日已用 / 峰谷时段 / 每轮消耗；亮橙主题，点气泡时从日常形态切换为魔女形态；可换角色图、调大小、改气泡与音效。',
+    moduleName: 'dsh-mimo-widget',
+    route: '/dsh-mimo/',
+    script: '/dsh-mimo/widget.js',
+    rootClass: '.dshmmv-root',
+    iconFile: 'mimo.png',
+  },
 ]
 
 /** 按 id 查目录；未知 id 返回 undefined。 */

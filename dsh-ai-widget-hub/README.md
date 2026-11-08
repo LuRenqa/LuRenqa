@@ -1,13 +1,13 @@
 # DSH AI娘挂件中心（dsh-ai-widget-hub）
 
-> v0.2 · **自包含版**：一个插件内置全部 8 只余额桌宠。
+> v0.2.1 · **自包含版**：一个插件内置全部 9 只余额桌宠（含 MIMO娘）。
 
 DeepSeek Harness（DSH）Web 界面左侧栏的一个入口：**「AI娘」**。
-打开后是一页卡片式的「AI娘挂件中心」，把 **8 只显示余额的桌宠挂件**（AI娘）列成卡片，
+打开后是一页卡片式的「AI娘挂件中心」，把 **9 只显示余额的桌宠挂件**（AI娘，含 MIMO娘）列成卡片，
 每张卡片一个开关，**即时开 / 关**，不用再逐个去插件市场里翻。
 
-**从 v0.2 起本插件是自包含的**：8 只挂件的完整运行时（Host 半 + 浏览器脚本 + 美术素材）都内嵌在
-本包 `widgets/<id>/` 下（约 **67 MiB / 160 个文件**）。**只安装本插件就够了** —— 仓库里的 8 个独立挂件包
+**从 v0.2 起本插件是自包含的**：9 只挂件的完整运行时（Host 半 + 浏览器脚本 + 美术素材）都内嵌在
+本包 `widgets/<id>/` 下（约 **74 MiB / 182 个文件**）。**只安装本插件就够了** —— 仓库里的 8 个独立挂件包（MIMO娘只随本插件提供）
 （`dsh-neko-widget` / `dsh-kimi-widget` / `dsh-glm-widget` / `dsh-qwen-widget` / `dsh-grok-widget` /
 `dsh-whale-widget` / `dsh-xiaoke-widget` / `dsh-gpt-niang-widget`）**不再需要安装**；它们仍留在仓库里，
 只供“只想要其中一只挂件”的用户单独使用。
@@ -16,18 +16,18 @@ DeepSeek Harness（DSH）Web 界面左侧栏的一个入口：**「AI娘」**。
 
 ## 它做什么
 
-- 🧭 **一个入口管全部**：左侧栏「AI娘」（panel id `ai-widgets`，order 20）→ 一页列出 8 只挂件
-- 📦 **自包含**：8 只挂件的 Host 实现与浏览器脚本原样内嵌，装一个插件等于装齐 8 只
+- 🧭 **一个入口管全部**：左侧栏「AI娘」（panel id `ai-widgets`，order 20）→ 一页列出 9 只挂件
+- 📦 **自包含**：9 只挂件的 Host 实现与浏览器脚本原样内嵌，装一个插件等于装齐 9 只
 - 🔘 **即时开关**：开关由本插件自己**挂载 / 卸载**内嵌挂件（Cordis child plugin），不用重启 DSH；
   页面里已显示的桌宠会立刻被隐藏，重新打开时再补加载它的浏览器脚本
-- 💾 **自动持久化**：开关状态写进 `$DSH_HOME/dsh-ai-widget-hub.json`，下次启动沿用；文件损坏时回落到「8 只全开」
+- 💾 **自动持久化**：开关状态写进 `$DSH_HOME/dsh-ai-widget-hub.json`，下次启动沿用；文件损坏时回落到「9 只全开」
 - 🔄 **状态自动同步**：每 5 秒轮询一次真实挂载状态（页面在后台时暂停），窗口重新聚焦时也刷新；以 Host 的实时结果为准
 - 🔎 **搜索 / 批量 / 刷新**：按名字 / 风格过滤；「全部开启」「全部关闭」串行逐个切换并显示进度；手动刷新
-- ✅ **不再有「未安装」**：8 只全部内置，卡片恒为已安装，`enabled` 表示“此刻有没有被挂载”
+- ✅ **不再有「未安装」**：9 只全部内置，卡片恒为已安装，`enabled` 表示“此刻有没有被挂载”
 - 🌐 **中英双语**：界面文案内置 zh / en 字典，注册到 DSH locale 服务；拿不到 locale 时用中文兜底
 - 🛡️ **出错只坏这一页**：加载失败给错误条 + 重试，渲染异常由错误边界接住，不影响 DSH 其它页面
 
-## 支持的挂件（8 只）
+## 支持的挂件（9 只）
 
 | id | 挂件 | 主题 | 路由 | 内嵌版本 |
 | --- | --- | --- | --- | --- |
@@ -39,24 +39,38 @@ DeepSeek Harness（DSH）Web 界面左侧栏的一个入口：**「AI娘」**。
 | `whale` | DeepSeek娘 | 原版小鲸鱼 | `/dsh-whale/` | 0.4.2 |
 | `xiaoke` | Claude娘 | 珊瑚橙 | `/dsh-xiaoke/` | 0.4.2 |
 | `gptniang` | GPT娘 | 青绿 | `/dsh-gptniang/` | 0.3.17 |
+| `mimo` | **MIMO娘** | **亮橙 · 双形态** | `/dsh-mimo/` | 0.1.0 |
 
 上表的路由 / 脚本 / 根 DOM class 以 `catalog.js` 为准，版本号取自内嵌副本的 `package.json`
 （`widgets/manifest.json` 是内嵌内容的构建清单，不是运行期数据源）。
 每只挂件的功能（余额 / 今日已用 / 峰谷时段 / 每轮消耗、可换角色图、调大小、改气泡与音效）
 与独立安装时完全一致，数据文件也仍在原来的位置。
 
+**MIMO娘（v0.2.1 新增）**：亮橙主题——气泡边框、气泡文字、菜单色块渐变、滑杆圆点与投影均为亮橙色。
+初始为「日常形态」（图一）；**点击 MIMO娘 或气泡打开时切换为「魔女形态」（图二），气泡收起后切回图一**。
+动态角色（呼吸两帧）取自日常形态；数据文件前缀 `.dshmm-*`，路由 `/dsh-mimo/`。
+
 ## v0.2 变更（相对 v0.1）
 
 | 方面 | v0.1 | v0.2（自包含） |
 | --- | --- | --- |
-| 安装依赖 | 8 只独立挂件包必须各自安装 | **只装本插件**；8 只独立包仅保留给 standalone 用法（不得并装） |
+| 安装依赖 | 8 只独立挂件包必须各自安装 | **只装本插件**（内置 9 只）；8 只独立包仅保留给 standalone 用法（不得并装；MIMO娘只随本插件） |
 | 开关实现 | `pluginManager.setPluginEnabled()` 改 profile 里的插件行 | 本插件用 `ctx.plugin(内嵌挂件)` 挂载 / `fiber.dispose()` 卸载 |
 | 是否即时 | 即时（热应用 profile 行） | 即时（Host 半自己挂载 / 卸载，无需重启） |
 | 状态保存 | DSH 写在 profile 的 `cordis.patch.yml` | 本插件写 `$DSH_HOME/dsh-ai-widget-hub.json` |
 | 未安装状态 | 未安装的卡片显示「未安装」并禁用开关 | 恒为已安装，不再有该状态 |
 | 运行期诊断 | 无 | `$DSH_HOME/dsh-ai-widget-hub.runtime.json` |
-| 包体积 | 很小（只含面板与图标） | 约 67 MiB（内嵌 8 只挂件运行时） |
-| 并存风险 | 无 | **不能**与 8 个独立包同时安装（`/dsh-*` 路由重复注册） |
+| 包体积 | 很小（只含面板与图标） | 约 74 MiB（内嵌 9 只挂件运行时） |
+| 并存风险 | 无 | **不能**与 8 个独立包同时安装（`/dsh-*` 路由重复注册；MIMO娘无独立包） |
+
+## v0.2.1 变更（新增 MIMO娘）
+
+- 新增第 9 只内置挂件 **MIMO娘**（`mimo`，路由 `/dsh-mimo/`，内嵌版本 0.1.0），功能与其他 AI娘一致
+  （余额 / 今日已用 / 峰谷 / 每轮消耗、气泡系统、音效、角色 / 大小 / 吸附自定义）。
+- 主题：**亮橙色** —— 气泡边框、气泡文字、菜单色块、滑杆圆点与投影全部改成橙色系。
+- **双形态**：初始「日常形态」（图一）；点击 MIMO娘或气泡打开时切换「魔女形态」（图二），气泡收起后切回图一。
+  用户自定义角色 / 动态角色不受影响。
+- 美术：两张角色图由仓库作者提供，沿用本仓库 **CC BY-NC-SA 4.0（非商用）** 素材许可。
 
 ## 安装
 
@@ -81,7 +95,7 @@ dsh plugin --profile <profile> add link:<仓库绝对路径>/dsh-ai-widget-hub
 
 ### 3. 首次安装后需要重启一次（桌面客户端）
 
-- Host 半**热加载立即生效**：`/dsh-ai-hub/*` 路由可用，默认开启的 8 只挂件路由也会随之注册。
+- Host 半**热加载立即生效**：`/dsh-ai-hub/*` 路由可用，默认开启的 9 只挂件路由也会随之注册。
 - **左侧栏「AI娘」入口属于 Client 半，桌面客户端需要完整重启一次 DSH 才会出现** —— 桌面端在宿主启动时
   把页面注入表（含各 Client 插件的启动脚本）缓存下来，装好插件后只刷新页面不会重新收集。
   重启一次之后，**以后所有的开关操作都不再需要重启**。
@@ -127,11 +141,11 @@ dsh plugin --profile <profile> add link:<仓库绝对路径>/dsh-ai-widget-hub
 
 | 文件 | 用途 |
 | --- | --- |
-| `$DSH_HOME/dsh-ai-widget-hub.json` | **唯一开关状态文件**：`{ "version": 1, "enabled": { "<id>": true/false } }`，缺省 / 损坏时按 8 只全开处理 |
+| `$DSH_HOME/dsh-ai-widget-hub.json` | **唯一开关状态文件**：`{ "version": 1, "enabled": { "<id>": true/false } }`，缺省 / 损坏时按 9 只全开处理 |
 | `$DSH_HOME/dsh-ai-widget-hub.runtime.json` | 运行期诊断：`{ at, pid, mounted: [...], errors: {...} }`，每次挂载 / 卸载覆盖写；仅排障用 |
 
 - 状态文件写入用“临时文件 + rename”的原子替换；写失败时本次开关报失败并回滚，不会留下半份文件。
-- 8 只挂件**自己的**数据文件（外观、账本、泡泡配置、自定义角色 / 音效等）位置不变，
+- 9 只挂件**自己的**数据文件（外观、账本、泡泡配置、自定义角色 / 音效等）位置不变，
   仍在 `$DSH_HOME` 下各自的 `.dshnk-*` / `.dshkm-*` / `.dshgl-*` … 文件与目录里，见各挂件 README。
 - 本插件**不修改** profile 的 `package.json` / `cordis.patch.yml`。
 - 没有需要填写的插件配置项（无 Config schema）；语言、主题都跟随 DSH。
@@ -157,16 +171,16 @@ POST 请求体上限 16 KiB，超过返回 413；方法不对返回 405。
 ```
 dsh-ai-widget-hub/
 ├── index.js            Host 半：状态 / 开关 / 挂载卸载 / 路由 / 栅栏 / 图标字节
-├── catalog.js          8 只挂件的静态目录（id / 名称 / 主题色 / 路由 / 脚本 / 根 class）
+├── catalog.js          9 只挂件的静态目录（id / 名称 / 主题色 / 路由 / 脚本 / 根 class）
 ├── client.js           Client 半：左侧栏入口 + 挂件中心页面（无构建、无 JSX）
 ├── package.json        清单（dsh.bundle.patch + dsh.client；files 含 widgets/**）
 ├── cordis.patch.yml    往 profile 插入本插件行
 ├── locale/             zh.json / en.json（插件市场里显示的标题与描述）
 ├── icon.svg            插件图标（原创 SVG）
-├── assets/icons/       8 张卡片头像（96×96 PNG）
-├── widgets/            v0.2 内嵌的 8 只挂件运行时（每只 lib/ + assets/ + package.json）
+├── assets/icons/       9 张卡片头像（96×96 PNG）
+├── widgets/            v0.2 内嵌的 9 只挂件运行时（每只 lib/ + assets/ + package.json）
 │   ├── manifest.json   内嵌内容的构建清单（id / 入口 / 版本 / 路由 / 根 class）
-│   └── <id>/           neko kimi glm qwen grok whale xiaoke gptniang
+│   └── <id>/           neko kimi glm qwen grok whale xiaoke gptniang mimo
 ├── SPEC.md             内部实现规格（开发用，不随包发布）
 └── README.md
 ```
@@ -192,7 +206,7 @@ dsh-ai-widget-hub/
 ## 许可与致谢
 
 - **本插件代码**：MIT，见仓库根 [LICENSE](../LICENSE)；`package.json` 声明 `license: MIT`。
-- **内嵌的 8 只挂件代码**：均为 **MIT**，版权归各原作者 / 上游（见下表），本插件只做“打包 + 统一开关”，
+- **内嵌的 9 只挂件代码**：均为 **MIT**，版权归各原作者 / 上游（见下表），本插件只做“打包 + 统一开关”，
   未对挂件功能做修改。
 - **角色美术素材**：沿用各挂件原许可，**CC BY-NC-SA 4.0，不可商用**；
   完整素材来源见仓库根 [PROVENANCE.md](../PROVENANCE.md) 与各挂件目录的 `ATTRIBUTION.md` / `LICENSE-ARTWORK`。
@@ -205,6 +219,7 @@ dsh-ai-widget-hub/
 | DeepSeek娘（小鲸鱼） | [MeteorNOX](https://github.com/MeteorNOX) | MIT |
 | Claude娘（小克） | [aklnaaw](https://github.com/aklnaaw) | MIT（素材 CC BY-NC-SA 4.0） |
 | GPT娘 | [xixingyingmie](https://github.com/xixingyingmie) | MIT |
+| **MIMO娘** | 角色美术由仓库作者提供；挂件代码派生自本仓库 Grok娘 / Gemini娘（上游 MeteorNOX） | MIT（代码）/ CC BY-NC-SA 4.0（美术） |
 
 本项目与 Google / 月之暗面 / 智谱 / 阿里 / xAI / DeepSeek / Anthropic / OpenAI 等官方均无隶属关系，
 角色名称仅为个人使用习惯。

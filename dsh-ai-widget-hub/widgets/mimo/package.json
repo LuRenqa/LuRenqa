@@ -1,0 +1,32 @@
+{
+  "name": "dsh-mimo-widget",
+  "version": "0.1.0",
+  "description": "DSH Web 界面右下角的 MIMO娘 拟人桌宠：余额/今日已用/峰谷定价、自定义泡泡与音效；亮橙主题，点气泡在「日常 / 魔女」两种形态间切换。派生自 dsh-grok-widget / dsh-neko-widget（MIT）。",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "balance",
+    "widget",
+    "mascot",
+    "mimo"
+  ],
+  "type": "module",
+  "main": "lib/mimo-index.js",
+  "icon": "./icon.png",
+  "files": [
+    "lib",
+    "assets",
+    "icon.png",
+    "cordis.patch.yml",
+    "README.md",
+    "PROVENANCE.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {},
+  "license": "MIT"
+}

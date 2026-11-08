@@ -11,22 +11,25 @@
 
 > 以下覆盖本文件第 0–8 节中与之冲突的描述；其余章节保留为 v0.1 的历史记录。
 
-1. **内置挂件**：8 只挂件的运行时（Host 入口 + 浏览器脚本 + `assets/` + `package.json`）
-   已复制到本包 `widgets/<id>/`（`id` = `neko/kimi/glm/qwen/grok/whale/xiaoke/gptniang`，
-   版本 0.4.2 ×7、gptniang 0.3.17；约 67 MiB / 160 个文件），构建清单见 `widgets/manifest.json`。
+1. **内置挂件**：9 只挂件的运行时（Host 入口 + 浏览器脚本 + `assets/` + `package.json`；v0.2.1 新增 mimo/MIMO娘 0.1.0）
+   已复制到本包 `widgets/<id>/`（`id` = `neko/kimi/glm/qwen/grok/whale/xiaoke/gptniang/mimo`，
+   版本 0.4.2 ×7、gptniang 0.3.17、mimo 0.1.0；约 74 MiB / 182 个文件），构建清单见 `widgets/manifest.json`。
    `package.json` 的 `files` 增加 `"widgets/**"`。
 2. **挂载 / 卸载自己来**：`index.js` 不再依赖 `pluginManager`，改为
    `ctx.plugin(内嵌挂件插件)` 挂载、`fiber.dispose()` 卸载（Cordis child plugin）。
    插件 apply 时按状态文件把已启用的挂件挂上；`POST /dsh-ai-hub/toggle` 现场挂 / 卸并持久化。
-3. **状态文件**：`$DSH_HOME/dsh-ai-widget-hub.json`（`{ version:1, enabled:{<id>:bool} }`，默认 8 只全开），
+3. **状态文件**：`$DSH_HOME/dsh-ai-widget-hub.json`（`{ version:1, enabled:{<id>:bool} }`，默认 9 只全开），
    原子写；运行期诊断 `$DSH_HOME/dsh-ai-widget-hub.runtime.json`（`{ at, pid, mounted, errors }`）。
    因此 §5 中“开关后 Host 不写任何状态文件”“状态由 profile patch 持久化”的旧描述作废。
 4. **安装面**：只需安装 `dsh-ai-widget-hub`；8 个独立挂件包（`dsh-neko-widget` 等）降级为
    standalone 版本，**不得与 hub 同时安装**（同一批 `/dsh-*` 路由重复注册）。
 5. **HTTP API 不变**：`GET /dsh-ai-hub/state`（新增 `bundled:true`；`installed` 恒 true、
    `entryId` 恒 null）、`POST /dsh-ai-hub/toggle`（`application:'applied' | 'failed'`）、
-   `GET /dsh-ai-hub/icon/<id>.png`。Client 半 UI 与交互不变，仅副标题改为“已内置全部 8 只挂件”。
+   `GET /dsh-ai-hub/icon/<id>.png`。Client 半 UI 与交互不变，仅副标题改为“已内置全部 9 只挂件”。
 6. **首次安装仍需重启一次桌面客户端**（页面注入表在宿主启动时缓存）；之后开关全部即时生效。
+7. **v0.2.1 新增 MIMO娘**（`mimo`，`dsh-mimo-widget` 0.1.0）：亮橙主题（气泡边框 / 气泡文字 / 菜单色块），
+   双形态图片 `assets/mimo1.png`（日常形）与 `assets/mimo2.png`（魔女形）；点角色或气泡打开时切图二，
+   气泡收起切回图一（client `mimoSetBubbleState` + host `/dsh-mimo/image2.png`）。
 
 ## 0. 关键结论（已由 Lead 实测/查证，不要再自行推翻）
 

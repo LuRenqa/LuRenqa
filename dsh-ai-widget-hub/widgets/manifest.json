@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-08T14:41:28.503Z",
+  "generatedAt": "2026-11-08T15:09:53.451Z",
   "widgets": [
     {
       "id": "neko",
@@ -79,6 +79,16 @@
       "route": "/dsh-gptniang/",
       "script": "/dsh-gptniang/widget.js",
       "rootClass": ".dshgnv-root",
+      "assetsDir": "assets"
+    },
+    {
+      "id": "mimo",
+      "entry": "lib/mimo-index.js",
+      "moduleName": "dsh-mimo-widget",
+      "version": "0.1.0",
+      "route": "/dsh-mimo/",
+      "script": "/dsh-mimo/widget.js",
+      "rootClass": ".dshmmv-root",
       "assetsDir": "assets"
     }
   ]

@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url'
 
 import { WIDGETS as CATALOG, findWidget } from './catalog.js'
 
-// —— 内嵌的 8 只挂件（Host 半，默认导出 { name, apply }）——
+// —— 内嵌的 9 只挂件（Host 半，默认导出 { name, apply }）——
 import nekoPlugin from './widgets/neko/lib/neko-index.js'
 import kimiPlugin from './widgets/kimi/lib/kimi-index.js'
 import glmPlugin from './widgets/glm/lib/glm-index.js'
@@ -36,6 +36,7 @@ import grokPlugin from './widgets/grok/lib/grok-index.js'
 import whalePlugin from './widgets/whale/lib/index.js'
 import xiaokePlugin from './widgets/xiaoke/lib/xiaoke-index.js'
 import gptniangPlugin from './widgets/gptniang/lib/gptniang-index.js'
+import mimoPlugin from './widgets/mimo/lib/mimo-index.js'
 
 const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)))
 const WIDGETS_DIR = path.join(PKG_ROOT, 'widgets')
@@ -61,6 +62,7 @@ const CHILD_PLUGINS = {
   whale: whalePlugin,
   xiaoke: xiaokePlugin,
   gptniang: gptniangPlugin,
+  mimo: mimoPlugin,
 }
 
 // ---------------------------------------------------------------------------

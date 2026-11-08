@@ -11,11 +11,11 @@ DeepSeek Harness（DSH）Web 界面右下角的一只常驻桌宠：**Gemini娘*
 ## AI娘挂件中心（本仓库插件，自包含）
 
 本仓库还带一个**自包含**的管理插件 [`dsh-ai-widget-hub/`](dsh-ai-widget-hub/README.md)：
-**它已经把下面全部 8 只余额桌宠的运行时内置在自己包里**（`widgets/<id>/`，约 67 MiB），
+**它已经把下面全部 9 只余额桌宠的运行时内置在自己包里**（`widgets/<id>/`，含 MIMO娘；约 74 MiB），
 在 DSH 左侧栏增加**一个入口「AI娘」**，打开后是一页卡片式的「AI娘挂件中心」，
 每张卡片一个开关，**即时开 / 关**，不用再逐个去插件市场里找。
 
-**只安装 `dsh-ai-widget-hub` 就够了**：仓库里的 8 个独立挂件包不再需要安装。
+**只安装 `dsh-ai-widget-hub` 就够了**：仓库里的 8 个独立挂件包不再需要安装（MIMO娘只随 hub 提供）。
 开关由 hub 自己用 Cordis child plugin **挂载 / 卸载**内置挂件（无需重启），状态存在
 `$DSH_HOME/dsh-ai-widget-hub.json`；它与独立挂件包**不要同时安装**（同一批 `/dsh-*` 路由会重复注册）。
 
@@ -36,12 +36,12 @@ DeepSeek Harness（DSH）Web 界面右下角的一只常驻桌宠：**Gemini娘*
 | [`dsh-whale-widget/`](dsh-whale-widget/README.md) | **DeepSeek娘**（`dsh-whale-widget`） | 蓝 | `/dsh-whale/` | 独立版（装 hub 就不需要） |
 | [`dsh-xiaoke-widget/`](dsh-xiaoke-widget/README.md) | **Claude娘**（`dsh-xiaoke-widget`） | 珊瑚橙 | `/dsh-xiaoke/` | 独立版（装 hub 就不需要） |
 | [`dsh-gpt-niang-widget/`](dsh-gpt-niang-widget/README.md) | **GPT娘**（`dsh-gpt-niang-widget`） | 青绿 | `/dsh-gptniang/` | 独立版（装 hub 就不需要） |
-| [`dsh-ai-widget-hub/`](dsh-ai-widget-hub/README.md) | **AI娘挂件中心**（`dsh-ai-widget-hub`）—— 内置全部 8 只，统一开关 | 挂件管理面板 | 左侧栏「AI娘」 | **自包含：装它即可** |
+| [`dsh-ai-widget-hub/`](dsh-ai-widget-hub/README.md) | **AI娘挂件中心**（`dsh-ai-widget-hub`）—— 内置全部 9 只，统一开关 | 挂件管理面板 | 左侧栏「AI娘」 | **自包含：装它即可** |
 
 上表前 8 行是挂件本身，功能一致，路由 / 存储 / DOM 全部隔离，彼此可以**同时安装、同时显示**（每只的详细说明见各自目录）。
-最后一行「AI娘挂件中心」不是挂件，而是**把 8 只挂件的运行时打包在一起**的管理插件：
+最后一行「AI娘挂件中心」不是挂件，而是**把 9 只挂件的运行时打包在一起**的管理插件：
 
-- **推荐用法（省事）**：只装 `dsh-ai-widget-hub`，8 只全部自带，左侧栏「AI娘」里逐只开关；
+- **推荐用法（省事）**：只装 `dsh-ai-widget-hub`，9 只全部自带，左侧栏「AI娘」里逐只开关；
   此时**不要**再装上面 8 个独立包（会重复注册 `/dsh-*` 路由）。
 - **独立用法（只想要一两只）**：只装对应的独立挂件包，不使用 hub。
 
