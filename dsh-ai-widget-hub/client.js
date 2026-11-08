@@ -1051,64 +1051,85 @@ window.__ModuleLoader__.load({
     }
 
     function mount(ctx) {
-      // 1) 全局隐藏样式：写在 <head>，插件卸载时随 effect 一起移除
-      ctx.effect(function () {
-        var old = document.querySelector('style[' + GATE_ATTR + ']');
-        if (old && old.parentNode) old.parentNode.removeChild(old);
-        var el = document.createElement('style');
-        el.setAttribute(GATE_ATTR, '');
-        el.textContent = buildGateCss(FALLBACK_WIDGETS);
-        document.head.appendChild(el);
-        gateStyleEl = el;
-        return function () {
-          if (gateStyleEl === el) gateStyleEl = null;
-          try { if (el.parentNode) el.parentNode.removeChild(el); } catch (err) { /* noop */ }
-        };
-      }, 'dsh-ai-widget-hub: gate css');
-
-      // 2) 本页面自己的 UI 样式
-      ctx.effect(function () {
-        var old = document.querySelector('style[' + STYLE_ATTR + ']');
-        if (old && old.parentNode) old.parentNode.removeChild(old);
-        var el = document.createElement('style');
-        el.setAttribute(STYLE_ATTR, '');
-        el.textContent = UI_CSS;
-        document.head.appendChild(el);
-        return function () {
-          try { if (el.parentNode) el.parentNode.removeChild(el); } catch (err) { /* noop */ }
-        };
-      }, 'dsh-ai-widget-hub: ui css');
-
-      // 3) 语言包：locale 服务可能晚于本插件就绪，用可选注入等它
-      if (ctx.locale && typeof ctx.locale.bind === 'function' && typeof ctx.locale.register === 'function') {
-        setupLocale(ctx);
-      } else if (typeof ctx.inject === 'function') {
-        try {
-          ctx.inject(['locale'], function (scoped) { setupLocale(scoped); });
-        } catch (err) {
-          /* 没有 locale 服务也能用中文兜底跑 */
+      // 0) 语言包：`locale` 已在插件 inject 里声明（见文件末尾的 inject 数组），
+      //    所以这里可以安全读 ctx.locale。注册失败不回滚入口：t() 会退中文兜底。
+      //    ⚠️ 教训：受限 Client 上下文对「未 inject 的服务属性」是抛错而不是返回 undefined，
+      //    因此任何 ctx.xxx 访问都必须先把 xxx 加进 inject。
+      try {
+        if (ctx.locale && typeof ctx.locale.bind === 'function' && typeof ctx.locale.register === 'function') {
+          setupLocale(ctx);
         }
+      } catch (err) {
+        try {
+          console.warn('[dsh-ai-widget-hub] 语言包初始化失败，改用中文兜底：', err);
+        } catch (ignored) { /* noop */ }
       }
 
-      // 4) 左侧栏入口：owner 会把图标渲染成按钮，并用同一个 id 选择主面板
-      ctx.slots.inject('sidebar.panellist', function () {
-        return ctx.slots.register({
-          name: 'sidebar.panellist',
-          id: 'ai-widgets',
-          order: 20,
-          label: function () { return t('sidebarLabel'); },
-          locale: NS,
-        }, HubSidebarIcon);
-      });
+      // 1) 左侧栏入口：owner 会把图标渲染成按钮，并用同一个 id 选择主面板
+      try {
+        ctx.slots.inject('sidebar.panellist', function () {
+          return ctx.slots.register({
+            name: 'sidebar.panellist',
+            id: 'ai-widgets',
+            order: 20,
+            label: function () { return t('sidebarLabel'); },
+          }, HubSidebarIcon);
+        });
+      } catch (err) {
+        try {
+          console.error('[dsh-ai-widget-hub] 左侧栏入口注册失败：', err);
+        } catch (ignored) { /* noop */ }
+      }
 
-      // 5) 主面板：key 必须与侧栏 id 一致
-      ctx.slots.inject('main', function () {
-        return ctx.slots.register({
-          name: 'main',
-          key: 'ai-widgets',
-          locale: NS,
-        }, HubPage);
-      });
+      // 2) 主面板：key 必须与侧栏 id 一致
+      try {
+        ctx.slots.inject('main', function () {
+          return ctx.slots.register({
+            name: 'main',
+            key: 'ai-widgets',
+          }, HubPage);
+        });
+      } catch (err) {
+        try {
+          console.error('[dsh-ai-widget-hub] 主面板注册失败：', err);
+        } catch (ignored) { /* noop */ }
+      }
+
+      // 3) 全局隐藏样式：写在 <head>，插件卸载时随 effect 一起移除
+      try {
+        ctx.effect(function () {
+          var old = document.querySelector('style[' + GATE_ATTR + ']');
+          if (old && old.parentNode) old.parentNode.removeChild(old);
+          var el = document.createElement('style');
+          el.setAttribute(GATE_ATTR, '');
+          el.textContent = buildGateCss(FALLBACK_WIDGETS);
+          document.head.appendChild(el);
+          gateStyleEl = el;
+          return function () {
+            if (gateStyleEl === el) gateStyleEl = null;
+            try { if (el.parentNode) el.parentNode.removeChild(el); } catch (err) { /* noop */ }
+          };
+        }, 'dsh-ai-widget-hub: gate css');
+      } catch (err) {
+        try { console.warn('[dsh-ai-widget-hub] 隐藏样式注入失败：', err); } catch (ignored) { /* noop */ }
+      }
+
+      // 4) 本页面自己的 UI 样式
+      try {
+        ctx.effect(function () {
+          var old = document.querySelector('style[' + STYLE_ATTR + ']');
+          if (old && old.parentNode) old.parentNode.removeChild(old);
+          var el = document.createElement('style');
+          el.setAttribute(STYLE_ATTR, '');
+          el.textContent = UI_CSS;
+          document.head.appendChild(el);
+          return function () {
+            try { if (el.parentNode) el.parentNode.removeChild(el); } catch (err) { /* noop */ }
+          };
+        }, 'dsh-ai-widget-hub: ui css');
+      } catch (err) {
+        try { console.warn('[dsh-ai-widget-hub] UI 样式注入失败：', err); } catch (ignored) { /* noop */ }
+      }
     }
 
     function apply(ctx) {
@@ -1123,7 +1144,9 @@ window.__ModuleLoader__.load({
     }
 
     return {
-      inject: ['slots'],
+      // 受限 Client 上下文：凡是要读的服务都必须列在这里，否则访问属性会直接抛错
+      // （v0.1.0 缺 'locale' 导致挂载在注册插槽前就失败，左侧栏入口不出现）。
+      inject: ['slots', 'locale'],
       apply: apply,
     };
   },

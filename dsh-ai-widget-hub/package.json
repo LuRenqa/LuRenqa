@@ -1,6 +1,6 @@
 {
   "name": "dsh-ai-widget-hub",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DSH 左侧栏 AI娘挂件中心：一个入口集中开关全部余额桌宠（DeepSeek/Gemini/Kimi/GLM/千问/Grok/Claude/GPT）。",
   "type": "module",
   "main": "index.js",
@@ -11,10 +11,25 @@
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
-  "files": ["index.js", "catalog.js", "client.js", "cordis.patch.yml", "locale/*.json", "icon.svg", "assets/icons/*.png", "README.md"],
+  "files": [
+    "index.js",
+    "catalog.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "assets/icons/*.png",
+    "README.md"
+  ],
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
-    "client": { "platform": "web", "immediately": true, "inject": [] }
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": []
+    }
   },
   "license": "MIT"
 }
