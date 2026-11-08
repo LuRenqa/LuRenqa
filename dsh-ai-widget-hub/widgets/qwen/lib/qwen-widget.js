@@ -356,6 +356,7 @@ var FETCH_TIMEOUT_MS = 25000
 var BALANCE_URL = '/dsh-qwen/balance.json'
 var SIZE_URL = '/dsh-qwen/size.json'
 var IMG_URL = '/dsh-qwen/image.png?v=6'
+var IMG2_URL = '/dsh-qwen/image2.png?v=1'
 var GIF_URL = '/dsh-qwen/rua.gif'
 var BUBBLE_URL = '/dsh-qwen/bubble.json'
 
@@ -18740,8 +18741,35 @@ function bubblePreviewInto(container, mods, widthPx, opts) {
 //  - 当前无泡泡:开新轮从第 1 次点击开始
 //  - 正显示第 2 次及以后的泡泡:回到序列开头(重开第 1 次点击泡泡)
 //  - 正显示第 1 次点击泡泡:不切换内容,仅重置留存计时
+// qwen 双形态：默认形态 = assets/qwen1.png；第二形态 = assets/qwen2.png。
+// 手势：**2 秒内连续点击 3 下**切换一次（形态1 ↔ 形态2）；第二形态默认大小比形态1大 3 档（0.3 scale）。
+// 只对内置默认角色生效；用户自定义角色 / 动态角色不参与切换。
+var qwenFormAlt = false
+var qwenClickTimes = []
+var QWEN_FORM2_EXTRA = 0.3
+function qwenToggleForm() {
+  try {
+    if (!currentRole || currentRole.id !== 'default') return
+    qwenFormAlt = !qwenFormAlt
+    var url = qwenFormAlt ? IMG2_URL : IMG_URL
+    img.src = url
+    hitReady = false
+    hitFailed = false
+    setupHitTest(url)
+    setScale(state.scale)
+  } catch (err) {}
+}
 function qwenClick() {
   try {
+    // 2 秒内连续 3 下 = 切换双形态（这一下不再推进气泡）
+    var qwenNow = Date.now()
+    qwenClickTimes = qwenClickTimes.filter(function (t) { return qwenNow - t <= 2000 })
+    qwenClickTimes.push(qwenNow)
+    if (qwenClickTimes.length >= 3) {
+      qwenClickTimes = []
+      qwenToggleForm()
+      return
+    }
     if (!bubbleOn) return
     if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert')) return // 消耗/预警提醒期间点千问娘不动作(点泡泡才关)
     if (!bubbleShown) {
@@ -19590,7 +19618,8 @@ function setScale(v) {
   var fx = state.flip ? rect.left : rect.right
   var fy = rect.bottom
   state.scale = next
-  root.style.setProperty('--dshqw-scale', String(next))
+  var applied = Math.min(MAX_SCALE, Math.max(MIN_SCALE, next + (qwenFormAlt ? QWEN_FORM2_EXTRA : 0)))
+  root.style.setProperty('--dshqw-scale', String(applied))
   scaleInput.value = String(next)
   scaleNumber.value = String(scaleToDisplay(next))
   saveConfig()

@@ -13,7 +13,7 @@
 
 1. **内置挂件**：9 只挂件的运行时（Host 入口 + 浏览器脚本 + `assets/` + `package.json`；v0.2.1 新增 mimo/MIMO娘 0.1.0）
    已复制到本包 `widgets/<id>/`（`id` = `neko/kimi/glm/qwen/grok/whale/xiaoke/gptniang/mimo`，
-   版本 0.4.2 ×7、gptniang 0.3.17、mimo 0.1.0；约 74 MiB / 183 个文件），构建清单见 `widgets/manifest.json`。
+   版本 0.4.3 ×7、gptniang 0.3.18、mimo 0.1.1；约 76 MiB / 190 个文件），构建清单见 `widgets/manifest.json`。
    `package.json` 的 `files` 增加 `"widgets/**"`。
 2. **挂载 / 卸载自己来**：`index.js` 不再依赖 `pluginManager`，改为
    `ctx.plugin(内嵌挂件插件)` 挂载、`fiber.dispose()` 卸载（Cordis child plugin）。
@@ -33,6 +33,10 @@
 8. **v0.2.3 GPT娘新增状态2**（内嵌 `dsh-gpt-niang-widget` 0.3.18）：`assets/gptniang2.png`（白底 JPG 去底、610×610 底边对齐）；
    切换方式同 MIMO娘（2 秒内连点 3 下，`gptToggleForm` + host `/dsh-gptniang/image2.png`）；
    状态2 默认比状态1 大 3 档（滑块档位 +3 = scale +0.3，基础 1.5 → 1.8），`setScale` 中叠加 `GPT_FORM2_EXTRA`，不改用户保存的基础大小。
+9. **v0.2.4 其余 7 只全部双形态**（内嵌 `dsh-*-widget` 0.4.3）：neko/kimi/glm/qwen/grok/xiaoke/whale 各新增
+   `assets/<id>2.png`（白底 JPG/PNG 去底，610×610 底边对齐），host 新增 `GET /dsh-<id>/image2.png`；
+   client 增加 `<id>ToggleForm` + 2 秒内连点 3 下计数，`setScale` 对状态2 叠加 `<ID>_FORM2_EXTRA = 0.3`；
+   逻辑与 GPT娘一致（不改用户保存的基础大小、只对默认角色生效）。
 
 ## 0. 关键结论（已由 Lead 实测/查证，不要再自行推翻）
 

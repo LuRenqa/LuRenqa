@@ -356,6 +356,7 @@ var FETCH_TIMEOUT_MS = 25000
 var BALANCE_URL = '/dsh-neko/balance.json'
 var SIZE_URL = '/dsh-neko/size.json'
 var IMG_URL = '/dsh-neko/image.png?v=6'
+var IMG2_URL = '/dsh-neko/image2.png?v=1'
 var GIF_URL = '/dsh-neko/rua.gif'
 var BUBBLE_URL = '/dsh-neko/bubble.json'
 
@@ -18725,8 +18726,35 @@ function bubblePreviewInto(container, mods, widthPx, opts) {
 //  - 当前无泡泡:开新轮从第 1 次点击开始
 //  - 正显示第 2 次及以后的泡泡:回到序列开头(重开第 1 次点击泡泡)
 //  - 正显示第 1 次点击泡泡:不切换内容,仅重置留存计时
+// neko 双形态：默认形态 = assets/neko1.png；第二形态 = assets/neko2.png。
+// 手势：**2 秒内连续点击 3 下**切换一次（形态1 ↔ 形态2）；第二形态默认大小比形态1大 3 档（0.3 scale）。
+// 只对内置默认角色生效；用户自定义角色 / 动态角色不参与切换。
+var nekoFormAlt = false
+var nekoClickTimes = []
+var NEKO_FORM2_EXTRA = 0.3
+function nekoToggleForm() {
+  try {
+    if (!currentRole || currentRole.id !== 'default') return
+    nekoFormAlt = !nekoFormAlt
+    var url = nekoFormAlt ? IMG2_URL : IMG_URL
+    img.src = url
+    hitReady = false
+    hitFailed = false
+    setupHitTest(url)
+    setScale(state.scale)
+  } catch (err) {}
+}
 function nekoClick() {
   try {
+    // 2 秒内连续 3 下 = 切换双形态（这一下不再推进气泡）
+    var nekoNow = Date.now()
+    nekoClickTimes = nekoClickTimes.filter(function (t) { return nekoNow - t <= 2000 })
+    nekoClickTimes.push(nekoNow)
+    if (nekoClickTimes.length >= 3) {
+      nekoClickTimes = []
+      nekoToggleForm()
+      return
+    }
     if (!bubbleOn) return
     if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert')) return // 消耗/预警提醒期间点Gemini娘不动作(点泡泡才关)
     if (!bubbleShown) {
@@ -19575,7 +19603,8 @@ function setScale(v) {
   var fx = state.flip ? rect.left : rect.right
   var fy = rect.bottom
   state.scale = next
-  root.style.setProperty('--dshnk-scale', String(next))
+  var applied = Math.min(MAX_SCALE, Math.max(MIN_SCALE, next + (nekoFormAlt ? NEKO_FORM2_EXTRA : 0)))
+  root.style.setProperty('--dshnk-scale', String(applied))
   scaleInput.value = String(next)
   scaleNumber.value = String(scaleToDisplay(next))
   saveConfig()

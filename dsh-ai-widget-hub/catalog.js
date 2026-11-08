@@ -13,7 +13,7 @@
 
 /** 8 只挂件共用的描述（SPEC §3）。 */
 export const SHARED_DESCRIPTION =
-  '余额 / 今日已用 / 峰谷时段 / 每轮消耗，点她会冒泡泡；可换角色图、调大小、改气泡与音效。'
+  '余额 / 今日已用 / 峰谷时段 / 每轮消耗，点她会冒泡泡；2 秒内连点三下在两种形态间切换；可换角色图、调大小、改气泡与音效。'
 
 /** @typedef {{ id:string, title:string, subtitle:string, accent:string, description:string, moduleName:string, route:string, script:string, rootClass:string, iconFile:string }} WidgetCatalogEntry */
 
@@ -22,7 +22,7 @@ export const WIDGETS = [
   {
     id: 'neko',
     title: 'Gemini娘',
-    subtitle: '银灰笔记风',
+    subtitle: '银灰笔记风 · 双形态',
     accent: '#8e75f0',
     description: SHARED_DESCRIPTION,
     moduleName: 'dsh-neko-widget',
@@ -34,7 +34,7 @@ export const WIDGETS = [
   {
     id: 'kimi',
     title: 'Kimi娘',
-    subtitle: '反光银灰',
+    subtitle: '反光银灰 · 双形态',
     accent: '#9aa7b5',
     description: SHARED_DESCRIPTION,
     moduleName: 'dsh-kimi-widget',
@@ -46,7 +46,7 @@ export const WIDGETS = [
   {
     id: 'glm',
     title: 'GLM娘',
-    subtitle: '纯黑镜面',
+    subtitle: '纯黑镜面 · 双形态',
     accent: '#6b6b6b',
     description: SHARED_DESCRIPTION,
     moduleName: 'dsh-glm-widget',
@@ -58,7 +58,7 @@ export const WIDGETS = [
   {
     id: 'qwen',
     title: '千问娘',
-    subtitle: '浅蓝',
+    subtitle: '浅蓝 · 双形态',
     accent: '#7cc8f0',
     description: SHARED_DESCRIPTION,
     moduleName: 'dsh-qwen-widget',
@@ -70,7 +70,7 @@ export const WIDGETS = [
   {
     id: 'grok',
     title: 'Grok娘',
-    subtitle: '金色',
+    subtitle: '金色 · 双形态',
     accent: '#d4af37',
     description: SHARED_DESCRIPTION,
     moduleName: 'dsh-grok-widget',
@@ -82,7 +82,7 @@ export const WIDGETS = [
   {
     id: 'whale',
     title: 'DeepSeek娘',
-    subtitle: '原版小鲸鱼',
+    subtitle: '原版小鲸鱼 · 双形态',
     accent: '#4d6bfe',
     description: SHARED_DESCRIPTION,
     moduleName: 'dsh-whale-widget',
@@ -94,7 +94,7 @@ export const WIDGETS = [
   {
     id: 'xiaoke',
     title: 'Claude娘',
-    subtitle: '珊瑚橙',
+    subtitle: '珊瑚橙 · 双形态',
     accent: '#d97757',
     description: SHARED_DESCRIPTION,
     moduleName: 'dsh-xiaoke-widget',

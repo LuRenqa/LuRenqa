@@ -32,6 +32,10 @@ const DSH_HOME = process.env.DSH_HOME || path.join(os.homedir(), '.dsh')
 const IMAGE_CANDIDATES = [
   path.join(PACKAGE_ROOT, 'assets', 'grok1.png'),
 ]
+// grok 第二形态（2 秒内连点三下切换）
+const IMAGE2_CANDIDATES = [
+  path.join(PACKAGE_ROOT, 'assets', 'grok2.png'),
+]
 // 自定义角色图片存放目录（第一个可写的会被使用；roles.json 存角色元数据）
 // ⭐ 2026-10-02（用户要求"并成一份"）：**用户数据的候选表一律 $DSH_HOME 优先**，开发机路径降级为兜底。
 //   原因：桌面客户端加载的是 strip 过的发布副本（只认 $DSH_HOME），而开发版宿主原先把开发机路径排在第一位
@@ -47,7 +51,7 @@ const DATA_CANDIDATES_TAIL = [
 //     因为开发版里的改动属于"将要发布的那一版"。
 //   ⚠️ BUILD_VERSION 与下面 payload 里两处 `version: '…'` 一起由 `_bump-version.mjs` 更新；
 //   ⚠️ BUILD_CHANNEL 由 `_strip-dev-paths.mjs` 在生成发布副本时改成 'release'（发布副本不带 dev 标记）。
-const BUILD_VERSION = '0.4.2'
+const BUILD_VERSION = '0.4.3'
 const BUILD_CHANNEL = 'release'
 function versionLabelOf(version, channel) {
   const s = String(version == null ? '' : version)
@@ -1152,6 +1156,21 @@ export default {
       throw new Error('rua gif not found')
     }
 
+    let image2Bytes = null
+    function loadImage2() {
+      if (image2Bytes) return image2Bytes
+      for (const p of IMAGE2_CANDIDATES) {
+        try {
+          const bytes = fs.readFileSync(p)
+          if (bytes && bytes.length > 0) {
+            image2Bytes = bytes
+            return bytes
+          }
+        } catch (err) {}
+      }
+      throw new Error('grok image2 not found')
+    }
+
     function loadImage() {
       if (imageBytes) return imageBytes
       for (const p of IMAGE_CANDIDATES) {
@@ -1551,7 +1570,7 @@ export default {
       const days = new Set([today, ...Object.keys(led.history || {}), ...accountingDays(led)])
       for (const e of events) if (/^\d{4}-\d{2}-\d{2}$/.test(e.day)) days.add(e.day)
       return {
-        ok: true, version: '0.4.2', versionLabel: VERSION_LABEL, today: todayData, days7,
+        ok: true, version: '0.4.3', versionLabel: VERSION_LABEL, today: todayData, days7,
         total7: total7ByCurrency[todayData.currency] || 0, total7Currency: todayData.currency, total7ByCurrency,
         all: {
           days: Array.from(days).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().reverse().map(forDay),
@@ -3116,7 +3135,7 @@ export default {
       const summary = daySummary(led, todayKey())
       const nowSec = Math.floor(Date.now() / 1000)
       return {
-        ...visible, version: '0.4.2', versionLabel: VERSION_LABEL, isPeak: isPeakTime(nowSec),
+        ...visible, version: '0.4.3', versionLabel: VERSION_LABEL, isPeak: isPeakTime(nowSec),
         // 峰谷切换点与节假日清单：前端倒计时要与宿主同源（否则法定节假日会算错切换点）
         peakNextChangeAt: nextPeakChangeAt(nowSec),
         peakHolidays: HOLIDAY_VALLEY_LIST,
@@ -3551,6 +3570,25 @@ export default {
         return st.isFile()
       } catch (err) { return false }
     }
+
+    disposers.push(registerRoute({
+      kind: 'exact',
+      path: '/dsh-grok/image2.png',
+      handler: (req, res) => {
+        try {
+          const bytes = loadImage2()
+          res.writeHead(200, {
+            'Content-Type': 'image/png',
+            'Cache-Control': 'no-store',
+            'Content-Length': String(bytes.length),
+          })
+          res.end(bytes)
+        } catch (err) {
+          res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
+          res.end('grok image2 unavailable: ' + String((err && err.message) || err))
+        }
+      },
+    }))
 
     disposers.push(registerRoute({
       kind: 'exact',
