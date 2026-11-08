@@ -56,7 +56,7 @@ window.__ModuleLoader__.load({
       zh: {
         sidebarLabel: 'AI娘',
         pageTitle: 'AI娘挂件中心',
-        pageSubtitle: '选择要在右下角显示的余额桌宠，开关即时生效，下次启动沿用',
+        pageSubtitle: '已内置全部 8 只挂件，选择要在右下角显示的余额桌宠；开关即时生效，下次启动沿用',
         searchPlaceholder: '搜索挂件名称或风格…',
         searchLabel: '搜索挂件',
         enableAll: '全部开启',
@@ -88,7 +88,7 @@ window.__ModuleLoader__.load({
       en: {
         sidebarLabel: 'AI Widgets',
         pageTitle: 'AI Widget Hub',
-        pageSubtitle: 'Choose which balance pet appears in the bottom-right corner. Toggles apply instantly and persist across launches.',
+        pageSubtitle: 'All 8 widgets are bundled in this plugin. Choose which balance pet appears in the bottom-right corner; toggles apply instantly and persist across launches.',
         searchPlaceholder: 'Search widgets by name or style…',
         searchLabel: 'Search widgets',
         enableAll: 'Enable all',

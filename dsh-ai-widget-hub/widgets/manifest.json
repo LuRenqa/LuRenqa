@@ -1,0 +1,85 @@
+{
+  "generatedAt": "2026-11-08T14:41:28.503Z",
+  "widgets": [
+    {
+      "id": "neko",
+      "entry": "lib/neko-index.js",
+      "moduleName": "dsh-neko-widget",
+      "version": "0.4.2",
+      "route": "/dsh-neko/",
+      "script": "/dsh-neko/widget.js",
+      "rootClass": ".dshnkv-root",
+      "assetsDir": "assets"
+    },
+    {
+      "id": "kimi",
+      "entry": "lib/kimi-index.js",
+      "moduleName": "dsh-kimi-widget",
+      "version": "0.4.2",
+      "route": "/dsh-kimi/",
+      "script": "/dsh-kimi/widget.js",
+      "rootClass": ".dshkmv-root",
+      "assetsDir": "assets"
+    },
+    {
+      "id": "glm",
+      "entry": "lib/glm-index.js",
+      "moduleName": "dsh-glm-widget",
+      "version": "0.4.2",
+      "route": "/dsh-glm/",
+      "script": "/dsh-glm/widget.js",
+      "rootClass": ".dshglv-root",
+      "assetsDir": "assets"
+    },
+    {
+      "id": "qwen",
+      "entry": "lib/qwen-index.js",
+      "moduleName": "dsh-qwen-widget",
+      "version": "0.4.2",
+      "route": "/dsh-qwen/",
+      "script": "/dsh-qwen/widget.js",
+      "rootClass": ".dshqwv-root",
+      "assetsDir": "assets"
+    },
+    {
+      "id": "grok",
+      "entry": "lib/grok-index.js",
+      "moduleName": "dsh-grok-widget",
+      "version": "0.4.2",
+      "route": "/dsh-grok/",
+      "script": "/dsh-grok/widget.js",
+      "rootClass": ".dshgkv-root",
+      "assetsDir": "assets"
+    },
+    {
+      "id": "whale",
+      "entry": "lib/index.js",
+      "moduleName": "dsh-whale-widget",
+      "version": "0.4.2",
+      "route": "/dsh-whale/",
+      "script": "/dsh-whale/widget.js",
+      "rootClass": ".dshwv-root",
+      "assetsDir": "assets"
+    },
+    {
+      "id": "xiaoke",
+      "entry": "lib/xiaoke-index.js",
+      "moduleName": "dsh-xiaoke-widget",
+      "version": "0.4.2",
+      "route": "/dsh-xiaoke/",
+      "script": "/dsh-xiaoke/widget.js",
+      "rootClass": ".dshxkv-root",
+      "assetsDir": "assets"
+    },
+    {
+      "id": "gptniang",
+      "entry": "lib/gptniang-index.js",
+      "moduleName": "dsh-gpt-niang-widget",
+      "version": "0.3.17",
+      "route": "/dsh-gptniang/",
+      "script": "/dsh-gptniang/widget.js",
+      "rootClass": ".dshgnv-root",
+      "assetsDir": "assets"
+    }
+  ]
+}

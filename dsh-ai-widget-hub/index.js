@@ -1,33 +1,67 @@
 /**
- * dsh-ai-widget-hub —— Host 半。
+ * dsh-ai-widget-hub —— Host 半（v0.2：自包含版）
+ * ============================================================================
+ * 一个插件内置全部 8 只余额桌宠挂件（Gemini娘 / Kimi娘 / GLM娘 / 千问娘 / Grok娘 /
+ * DeepSeek娘 / Claude娘 / GPT娘），安装本插件即可，不需要再单独安装
+ * dsh-neko-widget / dsh-kimi-widget / dsh-glm-widget / dsh-qwen-widget /
+ * dsh-grok-widget / dsh-whale-widget / dsh-xiaoke-widget / dsh-gpt-niang-widget。
  *
- * 职责（SPEC §5）：
- *   GET  /dsh-ai-hub/state        —— 8 只挂件的目录 + 运行期开关状态（来自 pluginManager）
- *   POST /dsh-ai-hub/toggle       —— { id, enabled } 热开关一只挂件
- *   GET  /dsh-ai-hub/icon/<id>.png —— 卡片头像（本包 assets/icons/）
+ * 做法：
+ *   - 8 只挂件的 Host 实现与浏览器脚本原样内嵌在 ./widgets/<id>/ 下；
+ *   - 本文件按用户开关状态，用 Cordis 的 child plugin 机制「挂载/卸载」它们：
+ *       开启 = ctx.plugin(widgetPlugin)（挂件自己的路由 + 注入行随之注册）
+ *       关闭 = fiber.dispose()（路由与监听全部撤销）
+ *   - 开关状态存在 $DSH_HOME/dsh-ai-widget-hub.json（唯一状态文件）；
+ *   - 不再依赖 profile 里的 pluginManager 行开关，也不再依赖 8 个独立插件包。
  *
- * 安全：三条路由统一走「回环 Host + 同源 + 委托 connection.requestRejection」的
- * fail-closed 栅栏（与 dsh 自带的 /open-in-app/* 做法一致）。
- *
- * 不写任何状态文件：开关的持久化就是 profile 的 cordis.patch.yml（由 pluginManager 维护）。
+ * HTTP API（Client 半使用）：
+ *   GET  /dsh-ai-hub/state    -> 8 只挂件的目录 + 开关状态
+ *   POST /dsh-ai-hub/toggle   -> { id, enabled } 挂载/卸载并持久化
+ *   GET  /dsh-ai-hub/icon/<id>.png
  */
 
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { WIDGETS, findWidget } from './catalog.js'
+import { WIDGETS as CATALOG, findWidget } from './catalog.js'
 
-/** 包根目录（由本文件位置推导，不写死绝对路径）。 */
+// —— 内嵌的 8 只挂件（Host 半，默认导出 { name, apply }）——
+import nekoPlugin from './widgets/neko/lib/neko-index.js'
+import kimiPlugin from './widgets/kimi/lib/kimi-index.js'
+import glmPlugin from './widgets/glm/lib/glm-index.js'
+import qwenPlugin from './widgets/qwen/lib/qwen-index.js'
+import grokPlugin from './widgets/grok/lib/grok-index.js'
+import whalePlugin from './widgets/whale/lib/index.js'
+import xiaokePlugin from './widgets/xiaoke/lib/xiaoke-index.js'
+import gptniangPlugin from './widgets/gptniang/lib/gptniang-index.js'
+
 const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)))
+const WIDGETS_DIR = path.join(PKG_ROOT, 'widgets')
 const ICON_DIR = path.join(PKG_ROOT, 'assets', 'icons')
+
+const DSH_HOME = process.env.DSH_HOME || path.join(os.homedir(), '.dsh')
+const STATE_FILE = path.join(DSH_HOME, 'dsh-ai-widget-hub.json')
+const RUNTIME_DIAG_FILE = path.join(DSH_HOME, 'dsh-ai-widget-hub.runtime.json')
 
 const STATE_PATH = '/dsh-ai-hub/state'
 const TOGGLE_PATH = '/dsh-ai-hub/toggle'
-/** 前缀路由：只用于未知图标 id 的 404 兜底（exact 路由优先，见 dsh-host-webserver 的 match()）。 */
 const ICON_PREFIX = '/dsh-ai-hub/icon'
 
 const MAX_BODY_BYTES = 16 * 1024
+
+/** id -> 内嵌挂件插件对象（默认导出）。 */
+const CHILD_PLUGINS = {
+  neko: nekoPlugin,
+  kimi: kimiPlugin,
+  glm: glmPlugin,
+  qwen: qwenPlugin,
+  grok: grokPlugin,
+  whale: whalePlugin,
+  xiaoke: xiaokePlugin,
+  gptniang: gptniangPlugin,
+}
 
 // ---------------------------------------------------------------------------
 // 响应工具
@@ -69,7 +103,6 @@ function sendText(res, status, body) {
   }
 }
 
-/** 405 + Allow 头。 */
 function sendMethodNotAllowed(res, allow) {
   try {
     res.setHeader('Allow', allow)
@@ -79,7 +112,6 @@ function sendMethodNotAllowed(res, allow) {
   sendText(res, 405, 'method not allowed')
 }
 
-/** 收集有界请求体（UTF-8）；超限 / 空体 / 非法 JSON 都抛带 code 的 Error。 */
 async function readJsonBody(req, limitBytes) {
   const chunks = []
   let size = 0
@@ -108,10 +140,9 @@ async function readJsonBody(req, limitBytes) {
 }
 
 // ---------------------------------------------------------------------------
-// 信任栅栏（fail-closed）
+// 信任栅栏（fail-closed，沿用 v0.1 的实现）
 // ---------------------------------------------------------------------------
 
-/** 回环 hostname：localhost / *.localhost / 127.0.0.0/8 / ::1（逐段校验，防相似域名）。 */
 function isLoopbackHostname(hostname) {
   const h = String(hostname || '')
     .toLowerCase()
@@ -126,7 +157,6 @@ function isLoopbackHostname(hostname) {
   return [m[2], m[3], m[4]].every((part) => Number(part) <= 255)
 }
 
-/** 供外部单测/自检使用的 Host 头判定（含端口）。 */
 export function isLoopbackHost(hostHeader) {
   const raw = String(hostHeader || '').trim()
   if (raw === '') return false
@@ -154,14 +184,6 @@ function connectionOf(ctx) {
   }
 }
 
-/**
- * 返回应拒绝的 HTTP 状态码，放行返回 null。
- *   ① Host 必须是回环（缺失/畸形/非回环 → 403）
- *   ② sec-fetch-site: cross-site → 403
- *   ③ 带 Origin 时必须与 Host 同源（"null" 也拒）→ 否则 403
- *   ④ 有 connection.requestRejection 就**也**委托它（返回非空即拒；它抛异常 → 403）
- * 任何一步自身出错 → 403（fail-closed）。
- */
 function rejectionFor(ctx, req) {
   try {
     const headers = (req && req.headers) || {}
@@ -211,41 +233,151 @@ function rejectionFor(ctx, req) {
 }
 
 // ---------------------------------------------------------------------------
-// pluginManager 读取（对返回值形状做容错）
+// 开关状态（唯一状态文件 $DSH_HOME/dsh-ai-widget-hub.json）
 // ---------------------------------------------------------------------------
 
-/** 兼容「直接返回数组」与「返回 { entries: [...] }」两种形状。 */
-function asList(value, key) {
-  if (Array.isArray(value)) return value
-  if (value !== null && typeof value === 'object' && Array.isArray(value[key])) return value[key]
-  return []
+/** 默认：8 只全部开启（与 v0.1 管理 8 个独立插件时的默认观感一致）。 */
+function defaultState() {
+  const enabled = {}
+  for (const widget of CATALOG) enabled[widget.id] = true
+  return { version: 1, enabled }
 }
+
+function sanitizeState(raw) {
+  const out = defaultState()
+  if (raw === null || typeof raw !== 'object') return out
+  const enabled = raw.enabled
+  if (enabled !== null && typeof enabled === 'object' && !Array.isArray(enabled)) {
+    for (const widget of CATALOG) {
+      if (typeof enabled[widget.id] === 'boolean') out.enabled[widget.id] = enabled[widget.id]
+    }
+  }
+  return out
+}
+
+function loadState() {
+  try {
+    const text = fs.readFileSync(STATE_FILE, 'utf8')
+    return sanitizeState(JSON.parse(text))
+  } catch (err) {
+    return defaultState()
+  }
+}
+
+function saveState(state) {
+  try {
+    fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true })
+    const tmp = STATE_FILE + '.tmp-' + process.pid + '-' + Date.now()
+    fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n', 'utf8')
+    fs.renameSync(tmp, STATE_FILE)
+  } catch (err) {
+    throw new Error('无法写入开关状态文件：' + String((err && err.message) || err))
+  }
+}
+
+/** 每只挂件的版本（内嵌副本的 package.json）。 */
+function readVersions() {
+  const versions = {}
+  for (const widget of CATALOG) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(WIDGETS_DIR, widget.id, 'package.json'), 'utf8'))
+      versions[widget.id] = typeof pkg.version === 'string' ? pkg.version : '0.0.0'
+    } catch (err) {
+      versions[widget.id] = '0.0.0'
+    }
+  }
+  return versions
+}
+
+// ---------------------------------------------------------------------------
+// 运行期诊断（便于排障：每次挂载/卸载把当前挂载表写一份到 $DSH_HOME）
+// ---------------------------------------------------------------------------
+
+function writeRuntimeDiag(mounted, errors) {
+  try {
+    const payload = {
+      at: new Date().toISOString(),
+      pid: process.pid,
+      mounted: Array.from(mounted.keys()),
+      errors: errors || {},
+    }
+    fs.mkdirSync(path.dirname(RUNTIME_DIAG_FILE), { recursive: true })
+    fs.writeFileSync(RUNTIME_DIAG_FILE, JSON.stringify(payload, null, 2) + '\n', 'utf8')
+  } catch (err) {
+    /* 诊断写盘失败不影响功能 */
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Host 插件
+// ---------------------------------------------------------------------------
 
 export default {
   name: 'ai-widget-hub',
 
   apply(ctx) {
-    // 可选服务缺失时保持不激活（不抛错，不阻塞宿主启动）。
+    // 内嵌挂件的挂载表：id -> fiber
+    const mounted = new Map()
+    const state = loadState()
+    const versions = readVersions()
+
+    /** 挂载一只内嵌挂件，返回 { ok, fiber?, error? }。 */
+    function mountWidget(id) {
+      if (mounted.has(id)) return { ok: true, fiber: mounted.get(id) }
+      const plugin = CHILD_PLUGINS[id]
+      if (plugin === undefined || plugin === null) {
+        return { ok: false, error: 'unknown widget: ' + id }
+      }
+      try {
+        const fiber = ctx.plugin(plugin)
+        mounted.set(id, fiber)
+        return { ok: true, fiber }
+      } catch (err) {
+        return { ok: false, error: String((err && err.message) || err) }
+      }
+    }
+
+    /** 卸载一只内嵌挂件（撤销它注册的路由、注入行、定时器）。 */
+    async function unmountWidget(id) {
+      const fiber = mounted.get(id)
+      if (fiber === undefined) return true
+      mounted.delete(id)
+      try {
+        const result = typeof fiber.dispose === 'function' ? fiber.dispose() : undefined
+        if (result && typeof result.then === 'function') await result
+      } catch (err) {
+        try {
+          ctx.logger?.warn?.('[ai-widget-hub] 卸载 ' + id + ' 失败：' + String((err && err.message) || err))
+        } catch (err2) {
+          /* ignore */
+        }
+        return false
+      }
+      return true
+    }
+
+    // ① 按状态挂载全部启用的挂件（apply 一开始就做，保证宿主启动时它们能注册注入行）
+    const mountErrors = {}
+    for (const widget of CATALOG) {
+      if (state.enabled[widget.id] !== true) continue
+      const result = mountWidget(widget.id)
+      if (!result.ok) mountErrors[widget.id] = result.error
+    }
+    writeRuntimeDiag(mounted, mountErrors)
+
+    // ② 本插件自己的路由：需要 webServer
     try {
       if (typeof ctx.inject !== 'function') return
-      ctx.inject(['webServer', 'pluginManager'], (svc) => {
+      ctx.inject(['webServer'], (svc) => {
         const disposers = []
-        const logger = (() => {
-          try {
-            return svc.logger
-          } catch (err) {
-            return undefined
-          }
-        })()
         const warn = (message) => {
           try {
-            logger?.warn?.(message)
+            svc.logger?.warn?.(message)
           } catch (err) {
             /* ignore */
           }
         }
 
-        /** 注册一条路由并收集清理函数；重复注册等异常只告警，不影响其它路由。 */
         function register(kind, pathname, handler) {
           try {
             const dispose = svc.webServer.register({ kind, path: pathname, handler })
@@ -255,7 +387,6 @@ export default {
           }
         }
 
-        // ---- 统一带栅栏的包装 ----
         const routed = (handler) => (req, res) => {
           const rejection = rejectionFor(svc, req)
           if (rejection !== null) {
@@ -274,92 +405,43 @@ export default {
           return handler(req, res)
         }
 
-        // ---- 状态快照 ----
-        async function listEntries() {
-          const raw = await svc.pluginManager.listPlugins()
-          return asList(raw, 'entries').filter(
-            (entry) => entry !== null && typeof entry === 'object' && typeof entry.moduleName === 'string',
-          )
-        }
-
-        async function buildState() {
-          const [entries, bundles] = await Promise.all([
-            listEntries(),
-            (async () => asList(await svc.pluginManager.listBundles(), 'bundles'))(),
-          ])
-          const entryByModule = new Map()
-          for (const entry of entries) {
-            if (!entryByModule.has(entry.moduleName)) entryByModule.set(entry.moduleName, entry)
-          }
-          const versionByModule = new Map()
-          for (const bundle of bundles) {
-            if (bundle === null || typeof bundle !== 'object' || typeof bundle.name !== 'string') continue
-            const version = typeof bundle.version === 'string' && bundle.version !== '' ? bundle.version : '0.0.0'
-            if (!versionByModule.has(bundle.name)) versionByModule.set(bundle.name, version)
-          }
+        /** 组装 state 响应：目录 + 已挂载状态 + 版本。 */
+        function buildState() {
           return {
             ok: true,
-            widgets: WIDGETS.map((widget) => {
-              const entry = entryByModule.get(widget.moduleName)
-              const installed = entry !== undefined
-              return {
-                id: widget.id,
-                title: widget.title,
-                subtitle: widget.subtitle,
-                description: widget.description,
-                accent: widget.accent,
-                route: widget.route,
-                script: widget.script,
-                rootClass: widget.rootClass,
-                iconUrl: ICON_PREFIX + '/' + widget.id + '.png',
-                installed,
-                enabled: installed ? entry.enabled === true : false,
-                fiberPhase: installed ? (entry.fiberPhase ?? null) : null,
-                entryId: installed ? entry.entryId : null,
-                version: versionByModule.get(widget.moduleName) || '0.0.0',
-                readOnlyReason: installed && typeof entry.readOnlyReason === 'string' ? entry.readOnlyReason : null,
-              }
-            }),
+            bundled: true,
+            widgets: CATALOG.map((widget) => ({
+              id: widget.id,
+              title: widget.title,
+              subtitle: widget.subtitle,
+              description: widget.description,
+              accent: widget.accent,
+              route: widget.route,
+              script: widget.script,
+              rootClass: widget.rootClass,
+              iconUrl: ICON_PREFIX + '/' + widget.id + '.png',
+              installed: true,
+              enabled: mounted.has(widget.id),
+              fiberPhase: mounted.has(widget.id) ? 'active' : null,
+              entryId: null,
+              version: versions[widget.id] || '0.0.0',
+              readOnlyReason: null,
+            })),
           }
         }
 
-        // ---- 图标字节（按文件名缓存；文件不存在时抛错 → 404） ----
-        const iconCache = new Map()
-        function iconBytes(iconFile) {
-          if (typeof iconFile !== 'string' || iconFile === '' || path.basename(iconFile) !== iconFile) {
-            throw new Error('invalid icon file name')
-          }
-          const cached = iconCache.get(iconFile)
-          if (cached !== undefined) return cached
-          const bytes = fs.readFileSync(path.join(ICON_DIR, iconFile))
-          if (bytes.length === 0) throw new Error('empty icon file')
-          iconCache.set(iconFile, bytes)
-          return bytes
-        }
-
-        // ---- GET /dsh-ai-hub/state ----
+        // GET /dsh-ai-hub/state
         register(
           'exact',
           STATE_PATH,
-          routed(async (req, res) => {
+          routed((req, res) => {
             const method = String((req && req.method) || 'GET').toUpperCase()
             if (method !== 'GET' && method !== 'HEAD') {
               sendMethodNotAllowed(res, 'GET, HEAD')
               return
             }
             try {
-              const state = await buildState()
-              if (method === 'HEAD') {
-                try {
-                  res.statusCode = 200
-                  res.setHeader('Cache-Control', 'no-store')
-                  res.end()
-                } catch (err) {
-                  /* ignore */
-                }
-                return
-              }
-              sendJson(res, 200, state)
+              sendJson(res, 200, buildState())
             } catch (err) {
               sendJson(res, 500, {
                 ok: false,
@@ -369,7 +451,7 @@ export default {
           }),
         )
 
-        // ---- POST /dsh-ai-hub/toggle ----
+        // POST /dsh-ai-hub/toggle
         register(
           'exact',
           TOGGLE_PATH,
@@ -417,96 +499,71 @@ export default {
               return
             }
 
-            // 1) 按 moduleName 找当前运行期条目（entryId 不写死）
-            let entry
+            const target = payload.enabled
+            const before = mounted.has(widget.id)
+            let changed = false
             try {
-              const entries = await listEntries()
-              entry = entries.find((candidate) => candidate.moduleName === widget.moduleName)
-            } catch (err) {
-              sendJson(res, 200, {
-                ok: false,
-                id: widget.id,
-                error: { code: 'state-failed', message: String((err && err.message) || err) },
-              })
-              return
-            }
-            if (entry === undefined) {
-              sendJson(res, 200, {
-                ok: false,
-                id: widget.id,
-                error: { code: 'not-installed', message: widget.title + ' 对应的挂件插件未安装或未启用' },
-              })
-              return
-            }
+              if (target) {
+                if (!before) {
+                  const result = mountWidget(widget.id)
+                  if (!result.ok) throw new Error(result.error)
+                  // 等挂件完成加载（路由 / 注入行就绪），浏览器半随后补脚本
+                  try {
+                    if (result.fiber && typeof result.fiber.then === 'function') await result.fiber
+                  } catch (err) {
+                    /* 加载失败也让状态如实反映 */
+                  }
+                  changed = true
+                }
+              } else if (before) {
+                const ok = await unmountWidget(widget.id)
+                if (!ok) throw new Error('卸载失败')
+                changed = true
+              }
 
-            // 2) 热开关（ChangeResult 可能在 body 里报告 failed，也可能直接抛）
-            let result
-            try {
-              result = await svc.pluginManager.setPluginEnabled(entry.entryId, payload.enabled)
-            } catch (err) {
-              const code = err && typeof err.code === 'string' ? err.code : 'toggle-failed'
-              sendJson(res, 200, {
-                ok: false,
-                id: widget.id,
-                changed: false,
-                application: 'failed',
-                enabled: payload.enabled,
-                error: { code, message: String((err && err.message) || err) },
-              })
-              return
-            }
+              state.enabled[widget.id] = target
+              saveState(state)
+              writeRuntimeDiag(mounted, {})
 
-            const changed = !!(result && result.changed === true)
-            const application = result && typeof result.application === 'string' ? result.application : 'failed'
-            const warnings = result && Array.isArray(result.warnings) ? result.warnings : []
-            if (application === 'failed' || (result && result.error !== undefined && result.error !== null)) {
-              const failure = (result && result.error) || {}
+              sendJson(res, 200, {
+                ok: true,
+                id: widget.id,
+                changed,
+                application: 'applied',
+                enabled: mounted.has(widget.id),
+                fiberPhase: mounted.has(widget.id) ? 'active' : null,
+                warnings: [],
+                version: versions[widget.id] || '0.0.0',
+              })
+            } catch (err) {
+              // 回滚内存状态（文件未被改动）
+              state.enabled[widget.id] = before
               sendJson(res, 200, {
                 ok: false,
                 id: widget.id,
                 changed,
-                application,
-                enabled: payload.enabled,
-                warnings,
-                error: {
-                  code: typeof failure.code === 'string' ? failure.code : 'toggle-failed',
-                  message:
-                    typeof failure.diagnostic === 'string' && failure.diagnostic !== ''
-                      ? failure.diagnostic
-                      : 'pluginManager 未能应用这次开关改动',
-                },
+                application: 'failed',
+                enabled: mounted.has(widget.id),
+                error: { code: 'toggle-failed', message: String((err && err.message) || err) },
               })
-              return
             }
-
-            // 3) 回读一次实际状态（application 可能是 overridden / restart-required）
-            let effectiveEnabled = payload.enabled
-            let effectivePhase = null
-            try {
-              const entries = await listEntries()
-              const refreshed = entries.find((candidate) => candidate.moduleName === widget.moduleName)
-              if (refreshed !== undefined) {
-                effectiveEnabled = refreshed.enabled === true
-                effectivePhase = refreshed.fiberPhase ?? null
-              }
-            } catch (err) {
-              /* 回读失败不影响结果：用请求值 */
-            }
-
-            sendJson(res, 200, {
-              ok: true,
-              id: widget.id,
-              changed,
-              application,
-              enabled: effectiveEnabled,
-              warnings,
-              fiberPhase: effectivePhase,
-            })
           }),
         )
 
-        // ---- GET /dsh-ai-hub/icon/<id>.png（每个目录项一条 exact 路由） ----
-        for (const widget of WIDGETS) {
+        // 图标：每个 id 一条 exact 路由
+        const iconCache = new Map()
+        function iconBytes(iconFile) {
+          if (typeof iconFile !== 'string' || iconFile === '' || path.basename(iconFile) !== iconFile) {
+            throw new Error('invalid icon file name')
+          }
+          const cached = iconCache.get(iconFile)
+          if (cached !== undefined) return cached
+          const bytes = fs.readFileSync(path.join(ICON_DIR, iconFile))
+          if (bytes.length === 0) throw new Error('empty icon file')
+          iconCache.set(iconFile, bytes)
+          return bytes
+        }
+        for (const widget of CATALOG) {
           register(
             'exact',
             ICON_PREFIX + '/' + widget.id + '.png',
@@ -541,16 +598,10 @@ export default {
           )
         }
 
-        // ---- 未知图标 id 的 404 兜底（prefix 只在 exact 未命中时生效） ----
-        register(
-          'prefix',
-          ICON_PREFIX,
-          routed((req, res) => {
-            sendText(res, 404, 'icon not found')
-          }),
-        )
+        register('prefix', ICON_PREFIX, routed((req, res) => {
+          sendText(res, 404, 'icon not found')
+        }))
 
-        // 插件卸载/热重载时撤销全部路由
         svc.effect(() => () => {
           for (const dispose of disposers) {
             try {
@@ -563,12 +614,28 @@ export default {
         })
       })
     } catch (err) {
-      // 兜底：插件初始化异常不应拖垮宿主（路由可能没注册，UI 会显示错误条）
       try {
         ctx.logger?.warn?.('[ai-widget-hub] 初始化失败：' + String((err && err.message) || err))
       } catch (err2) {
         /* ignore */
       }
+    }
+
+    // ③ 插件卸载时把内嵌挂件全部卸载
+    try {
+      ctx.effect(() => () => {
+        for (const id of Array.from(mounted.keys())) {
+          try {
+            const fiber = mounted.get(id)
+            if (fiber && typeof fiber.dispose === 'function') fiber.dispose()
+          } catch (err) {
+            /* ignore */
+          }
+        }
+        mounted.clear()
+      })
+    } catch (err) {
+      /* ignore */
     }
   },
 }
