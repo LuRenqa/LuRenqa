@@ -32,11 +32,14 @@
    （图一 ↔ 图二，client `mimoToggleForm` + host `/dsh-mimo/image2.png`）；两图均使用源图自带的透明通道裁切（v0.2.2 修复黑底）。
 8. **v0.2.3 GPT娘新增状态2**（内嵌 `dsh-gpt-niang-widget` 0.3.18）：`assets/gptniang2.png`（白底 JPG 去底、610×610 底边对齐）；
    切换方式同 MIMO娘（2 秒内连点 3 下，`gptToggleForm` + host `/dsh-gptniang/image2.png`）；
-   状态2 默认比状态1 大 3 档（滑块档位 +3 = scale +0.3，基础 1.5 → 1.8），`setScale` 中叠加 `GPT_FORM2_EXTRA`，不改用户保存的基础大小。
+   状态2 默认比状态1 大 3 档（滑块档位 +3 = 0.3 scale）；v0.2.5 起只放大角色图片本体（`applyArtScale`），不改用户保存的基础大小。
 9. **v0.2.4 其余 7 只全部双形态**（内嵌 `dsh-*-widget` 0.4.3）：neko/kimi/glm/qwen/grok/xiaoke/whale 各新增
    `assets/<id>2.png`（白底 JPG/PNG 去底，610×610 底边对齐），host 新增 `GET /dsh-<id>/image2.png`；
-   client 增加 `<id>ToggleForm` + 2 秒内连点 3 下计数，`setScale` 对状态2 叠加 `<ID>_FORM2_EXTRA = 0.3`；
+   client 增加 `<id>ToggleForm` + 2 秒内连点 3 下计数；v0.2.5 起状态2 的放大只作用于角色图片本体；
    逻辑与 GPT娘一致（不改用户保存的基础大小、只对默认角色生效）。
+10. **v0.2.5 修正**：① 状态2 的放大改为只作用于角色 `img`（CSS `width/height: calc(59.45% * var(--dsh<前缀>-art-scale, 1))`，
+    `applyArtScale()` 在切换/改大小时设置该变量），root 整体 scale 与气泡 / 菜单 / 命中框均不变；
+    ② 8 张状态2 素材改用 isnet-anime ONNX 分割 + 边缘颜色解混（`C = aF + (1-a)W` 反解）重新生成，MIMO娘不变。
 
 ## 0. 关键结论（已由 Lead 实测/查证，不要再自行推翻）
 

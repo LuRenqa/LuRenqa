@@ -574,7 +574,7 @@ var css = [
   // 事件直接进入 iframe 自己的文档，主文档收不到 ⇒ Grok娘身体失联（点不动、拖不动，只有 ☰ 能用）。
   // 代价是 img 的**矩形**（含透明边距）会吞掉点击 → 由 setupHitTest() 用命中图的**凸包**做 clip-path
   // 裁掉透明区（凸包包含全部不透明像素，不会裁到角色本身），"点到透明处穿透到下层"的行为得以保留。
-  '.dshgkv-img{position:absolute;right:0;bottom:0;width:59.45%;height:59.45%;display:block;pointer-events:auto;-webkit-user-drag:none;user-select:none;object-fit:contain;object-position:right bottom}',
+  '.dshgkv-img{position:absolute;right:0;bottom:0;width:calc(59.45% * var(--dshgk-art-scale, 1));height:calc(59.45% * var(--dshgk-art-scale, 1));display:block;pointer-events:auto;-webkit-user-drag:none;user-select:none;object-fit:contain;object-position:right bottom}',
   // v751（PR #119）：光标不再写 document.body.style.cursor —— cursor 是可继承属性，写 <body> 会让 Blink
   // 失效**整棵文档树**的样式；而它在点击链路上按下/抬手各写一次，紧接着 isgrokHit() 的
   // getBoundingClientRect() 与泡泡行测量的 getComputedStyle()/scrollWidth 会强制刷新样式+布局，
@@ -18759,6 +18759,18 @@ function grokToggleForm() {
     setScale(state.scale)
   } catch (err) {}
 }
+// 状态2 只把**角色本体**放大 3 档（气泡 / 菜单 / 命中框都保持原尺寸）：
+// 在角色 img 上乘一个 art-scale（CSS 里 width/height 用 calc + var），root 的整体 scale 不动。
+function applyArtScale() {
+  try {
+    if (grokFormAlt && currentRole && currentRole.id === 'default') {
+      var ratio = (state.scale + GROK_FORM2_EXTRA) / Math.max(0.1, state.scale)
+      root.style.setProperty('--dshgk-art-scale', String(ratio))
+    } else {
+      root.style.removeProperty('--dshgk-art-scale')
+    }
+  } catch (err) {}
+}
 function grokClick() {
   try {
     // 2 秒内连续 3 下 = 切换双形态（这一下不再推进气泡）
@@ -19618,8 +19630,8 @@ function setScale(v) {
   var fx = state.flip ? rect.left : rect.right
   var fy = rect.bottom
   state.scale = next
-  var applied = Math.min(MAX_SCALE, Math.max(MIN_SCALE, next + (grokFormAlt ? GROK_FORM2_EXTRA : 0)))
-  root.style.setProperty('--dshgk-scale', String(applied))
+  root.style.setProperty('--dshgk-scale', String(next))
+  applyArtScale()
   scaleInput.value = String(next)
   scaleNumber.value = String(scaleToDisplay(next))
   saveConfig()
