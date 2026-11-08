@@ -14,8 +14,11 @@ DeepSeek Harness（DSH）Web 界面右下角的一只常驻桌宠：**Gemini娘*
 | --- | --- | --- | --- |
 | 根目录 | **Gemini娘**（`dsh-neko-widget`） | 紫色 | `/dsh-neko/` |
 | [`dsh-kimi-widget/`](dsh-kimi-widget/README.md) | **Kimi娘**（`dsh-kimi-widget`） | 反光银灰 | `/dsh-kimi/` |
+| [`dsh-glm-widget/`](dsh-glm-widget/README.md) | **GLM娘**（`dsh-glm-widget`） | 纯黑 | `/dsh-glm/` |
+| [`dsh-qwen-widget/`](dsh-qwen-widget/README.md) | **千问娘**（`dsh-qwen-widget`） | 浅蓝 | `/dsh-qwen/` |
+| [`dsh-grok-widget/`](dsh-grok-widget/README.md) | **Grok娘**（`dsh-grok-widget`） | 金色 | `/dsh-grok/` |
 
-两者功能完全一致，路由 / 存储 / DOM 全部隔离，可以**同时安装、同时显示**。
+以上挂件功能一致，路由 / 存储 / DOM 全部隔离，可以**同时安装、同时显示**（每只的详细说明见各自目录）。
 
 ## 功能
 
