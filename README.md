@@ -8,6 +8,15 @@ DeepSeek Harness（DSH）Web 界面右下角的一只常驻桌宠：**Gemini娘*
 
 ![Gemini娘](assets/neko1.png)
 
+## 本仓库内容
+
+| 位置 | 挂件 | 主题 | 路由 |
+| --- | --- | --- | --- |
+| 根目录 | **Gemini娘**（`dsh-neko-widget`） | 紫色 | `/dsh-neko/` |
+| [`dsh-kimi-widget/`](dsh-kimi-widget/README.md) | **Kimi娘**（`dsh-kimi-widget`） | 反光银灰 | `/dsh-kimi/` |
+
+两者功能完全一致，路由 / 存储 / DOM 全部隔离，可以**同时安装、同时显示**。
+
 ## 功能
 
 - 💰 **余额 / 今日已用**：读取 DSH 凭据里的 `DEEPSEEK_API_KEY`，或复用 DSH 账号登录态；60 秒自动刷新，点角色手动刷新
