@@ -40,6 +40,9 @@
 10. **v0.2.5 修正**：① 状态2 的放大改为只作用于角色 `img`（CSS `width/height: calc(59.45% * var(--dsh<前缀>-art-scale, 1))`，
     `applyArtScale()` 在切换/改大小时设置该变量），root 整体 scale 与气泡 / 菜单 / 命中框均不变；
     ② 8 张状态2 素材改用 isnet-anime ONNX 分割 + 边缘颜色解混（`C = aF + (1-a)W` 反解）重新生成，MIMO娘不变。
+11. **v0.2.6 性能**（多只同开）：① 轮询 1000ms → 3000ms + 随机相位；页面 hidden 时跳过；余额刷新错峰；
+   ② TTL 巡检 1000ms → 2000ms；③ 形态切换去掉 `setScale`（避免强制回流 + 写配置），改 `applyArtScale()`；
+   ④ 状态2 图片延迟预热 `new Image()`；命中图 clip 按 URL 缓存；⑤ hub 面板轮询 5s → 12s。
 
 ## 0. 关键结论（已由 Lead 实测/查证，不要再自行推翻）
 

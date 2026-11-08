@@ -35,7 +35,7 @@ window.__ModuleLoader__.load({
     var API_STATE = '/dsh-ai-hub/state';
     var API_TOGGLE = '/dsh-ai-hub/toggle';
     var OFF_PREFIX = 'dshaihub-off-';
-    var POLL_MS = 5000;
+    var POLL_MS = 12000; // 性能：面板状态轮询降频，减少与挂件同时渲染
 
     /* ── 兜底目录 ──────────────────────────────────────────────────────────
        第一次 state 请求返回之前（或请求失败时），全局隐藏样式需要一份 rootClass

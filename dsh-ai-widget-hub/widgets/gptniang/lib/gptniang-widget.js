@@ -338,6 +338,8 @@ var BALANCE_URL = '/dsh-gptniang/balance.json'
 var SIZE_URL = '/dsh-gptniang/size.json'
 var IMG_URL = '/dsh-gptniang/image.png?v=2'
 var IMG2_URL = '/dsh-gptniang/image2.png?v=1'
+// 性能：延迟预热状态2图片，首次切换形态时不卡在 fetch/解码
+setTimeout(function () { try { var p = new Image(); p.decoding = 'async'; p.src = IMG2_URL } catch (err) {} }, 2500 + Math.floor(Math.random() * 2500))
 var GIF_URL = '/dsh-gptniang/rua.gif'
 var BUBBLE_URL = '/dsh-gptniang/bubble.json'
 
@@ -12979,7 +12981,7 @@ function gptToggleForm() {
     hitFailed = false
     setupHitTest(url)
     // 用 setScale 重算一次：状态2 在用户设定的大小上再 +3 档，并保持右下角锚点
-    setScale(state.scale)
+    applyArtScale()
   } catch (err) {}
 }
 // 状态2 只把**角色本体**放大 3 档（气泡 / 菜单 / 命中框都保持原尺寸）：
@@ -15652,6 +15654,8 @@ audioEditPressBtn.addEventListener('click', function (e) { e.stopPropagation(); 
 audioEditReleaseBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleAudioSlotPanel('release') })
 
 var hitCanvas = null
+// 命中图 clip 缓存（按图片 URL）：切换状态时不重复做 610×610 读回 + 凸包
+var dshHitClipCache = Object.create(null)
 var hitReady = false
 var hitFailed = false // 命中图加载失败（如图片 404/资源缺失）：退回矩形区域判定，绝不吞掉整页事件
 function setupHitTest(url) {
@@ -15691,7 +15695,9 @@ function setupHitTest(url) {
         hitReady = true
         // v757（issue #147）：命中图可用 → 用不透明区域的凸包裁掉 img 的透明边距，
         // 这样"身体自己接事件"不会把透明角落的点击也吞掉。
-        applyHitClip(buildHitClipPath())
+        var dshCachedClip = dshHitClipCache[url]
+        if (dshCachedClip === undefined) { dshCachedClip = buildHitClipPath(); dshHitClipCache[url] = dshCachedClip }
+        applyHitClip(dshCachedClip)
       } catch (err) {
         hitFailed = true
         applyHitClip('')
@@ -16294,7 +16300,7 @@ fetch(SIZE_URL, { cache: 'no-store' })
     refresh(false)
     dshgnvToast('⚠ 设置读取失败，已暂停保存以免覆盖你的原有设置<br>请刷新页面重试')
   })
-setInterval(function () { refresh(false); try { loadApiModels(null, true) } catch (err) {} }, REFRESH_MS)
+setTimeout(function () { setInterval(function () { refresh(false); try { loadApiModels(null, true) } catch (err) {} }, REFRESH_MS) }, Math.floor(Math.random() * 5000))
 
 // —— 每轮对话消耗检测：轮询 last-turn.json，出现新 seq 时弹消耗金额泡泡 ——
 var LAST_TURN_URL = '/dsh-gptniang/last-turn.json'
@@ -16400,7 +16406,14 @@ function pollLastTurn() {
       .catch(function () {})
   } catch (err) {}
 }
-setInterval(function () { pollLastTurn(); pollWaitState() }, 1000)
+// 性能：多只挂件同开时把「每秒轮询」降频到 3 秒并随机错峰，页面不可见时跳过，
+// 避免多只挂件在同一帧里一起发请求 / 渲染造成卡顿。
+setTimeout(function () {
+  setInterval(function () {
+    try { if (document.hidden) return } catch (err) {}
+    pollLastTurn(); pollWaitState()
+  }, 3000)
+}, Math.floor(Math.random() * 3000))
 }
 // 主界面检测通过（或稍后由 MutationObserver 检测到）后执行挂件初始化；非主界面不启动
 try { dshgnTryStart(true) } catch (err) {}
