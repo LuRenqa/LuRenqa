@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-08T15:26:46.963Z",
+  "generatedAt": "2026-11-08T15:55:29.852Z",
   "widgets": [
     {
       "id": "neko",
@@ -75,7 +75,7 @@
       "id": "gptniang",
       "entry": "lib/gptniang-index.js",
       "moduleName": "dsh-gpt-niang-widget",
-      "version": "0.3.17",
+      "version": "0.3.18",
       "route": "/dsh-gptniang/",
       "script": "/dsh-gptniang/widget.js",
       "rootClass": ".dshgnv-root",

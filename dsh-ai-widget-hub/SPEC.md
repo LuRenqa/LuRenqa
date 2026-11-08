@@ -13,7 +13,7 @@
 
 1. **内置挂件**：9 只挂件的运行时（Host 入口 + 浏览器脚本 + `assets/` + `package.json`；v0.2.1 新增 mimo/MIMO娘 0.1.0）
    已复制到本包 `widgets/<id>/`（`id` = `neko/kimi/glm/qwen/grok/whale/xiaoke/gptniang/mimo`，
-   版本 0.4.2 ×7、gptniang 0.3.17、mimo 0.1.0；约 74 MiB / 182 个文件），构建清单见 `widgets/manifest.json`。
+   版本 0.4.2 ×7、gptniang 0.3.17、mimo 0.1.0；约 74 MiB / 183 个文件），构建清单见 `widgets/manifest.json`。
    `package.json` 的 `files` 增加 `"widgets/**"`。
 2. **挂载 / 卸载自己来**：`index.js` 不再依赖 `pluginManager`，改为
    `ctx.plugin(内嵌挂件插件)` 挂载、`fiber.dispose()` 卸载（Cordis child plugin）。
@@ -30,6 +30,9 @@
 7. **v0.2.1 新增 MIMO娘**（`mimo`，`dsh-mimo-widget` 0.1.1）：亮橙主题（气泡边框 / 气泡文字 / 菜单色块），
    双形态图片 `assets/mimo1.png`（日常形）与 `assets/mimo2.png`（魔女形）；**2 秒内连续点击 3 下**切换一次
    （图一 ↔ 图二，client `mimoToggleForm` + host `/dsh-mimo/image2.png`）；两图均使用源图自带的透明通道裁切（v0.2.2 修复黑底）。
+8. **v0.2.3 GPT娘新增状态2**（内嵌 `dsh-gpt-niang-widget` 0.3.18）：`assets/gptniang2.png`（白底 JPG 去底、610×610 底边对齐）；
+   切换方式同 MIMO娘（2 秒内连点 3 下，`gptToggleForm` + host `/dsh-gptniang/image2.png`）；
+   状态2 默认比状态1 大 3 档（滑块档位 +3 = scale +0.3，基础 1.5 → 1.8），`setScale` 中叠加 `GPT_FORM2_EXTRA`，不改用户保存的基础大小。
 
 ## 0. 关键结论（已由 Lead 实测/查证，不要再自行推翻）
 

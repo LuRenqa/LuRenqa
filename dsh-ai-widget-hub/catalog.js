@@ -106,9 +106,10 @@ export const WIDGETS = [
   {
     id: 'gptniang',
     title: 'GPT娘',
-    subtitle: '青绿',
+    subtitle: '青绿 · 双形态',
     accent: '#10a37f',
-    description: SHARED_DESCRIPTION,
+    description:
+      '余额 / 今日已用 / 峰谷时段 / 每轮消耗；2 秒内连点三下在两种形态间切换（状态2 默认大 3 档）；可换角色图、调大小、改气泡与音效。',
     moduleName: 'dsh-gpt-niang-widget',
     route: '/dsh-gptniang/',
     script: '/dsh-gptniang/widget.js',

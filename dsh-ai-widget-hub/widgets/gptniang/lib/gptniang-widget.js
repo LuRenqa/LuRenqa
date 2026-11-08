@@ -337,6 +337,7 @@ var FETCH_TIMEOUT_MS = 25000
 var BALANCE_URL = '/dsh-gptniang/balance.json'
 var SIZE_URL = '/dsh-gptniang/size.json'
 var IMG_URL = '/dsh-gptniang/image.png?v=2'
+var IMG2_URL = '/dsh-gptniang/image2.png?v=1'
 var GIF_URL = '/dsh-gptniang/rua.gif'
 var BUBBLE_URL = '/dsh-gptniang/bubble.json'
 
@@ -12962,8 +12963,36 @@ function bubblePreviewInto(container, mods, widthPx) {
 //  - 当前无泡泡:开新轮从第 1 次点击开始
 //  - 正显示第 2 次及以后的泡泡:回到序列开头(重开第 1 次点击泡泡)
 //  - 正显示第 1 次点击泡泡:不切换内容,仅重置留存计时
+// GPT娘双形态：默认形态 = assets/gptniang1.png；第二形态 = assets/gptniang2.png。
+// 手势：**2 秒内连续点击 3 下**切换一次（形态1 ↔ 形态2）；第二形态的默认大小比形态1大 3 档（0.3 scale）。
+// 只对内置默认角色生效；用户自定义角色 / 动态角色不参与切换。
+var gptFormAlt = false
+var gptClickTimes = []
+var GPT_FORM2_EXTRA = 0.3
+function gptToggleForm() {
+  try {
+    if (!currentRole || currentRole.id !== 'default') return
+    gptFormAlt = !gptFormAlt
+    var url = gptFormAlt ? IMG2_URL : IMG_URL
+    img.src = url
+    hitReady = false
+    hitFailed = false
+    setupHitTest(url)
+    // 用 setScale 重算一次：状态2 在用户设定的大小上再 +3 档，并保持右下角锚点
+    setScale(state.scale)
+  } catch (err) {}
+}
 function gptniangClick() {
   try {
+    // 2 秒内连续 3 下 = 切换双形态（这一下不再推进气泡）
+    var gptNow = Date.now()
+    gptClickTimes = gptClickTimes.filter(function (t) { return gptNow - t <= 2000 })
+    gptClickTimes.push(gptNow)
+    if (gptClickTimes.length >= 3) {
+      gptClickTimes = []
+      gptToggleForm()
+      return
+    }
     if (!bubbleOn) return
     if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert')) return // 消耗/预警提醒期间点GPT娘不动作(点泡泡才关)
     if (!bubbleShown) {
@@ -13781,7 +13810,8 @@ function setScale(v) {
   var fx = state.flip ? rect.left : rect.right
   var fy = rect.bottom
   state.scale = next
-  root.style.setProperty('--dshgn-scale', String(next))
+  var applied = Math.min(MAX_SCALE, Math.max(MIN_SCALE, next + (gptFormAlt ? GPT_FORM2_EXTRA : 0)))
+  root.style.setProperty('--dshgn-scale', String(applied))
   scaleInput.value = String(next)
   scaleNumber.value = String(scaleToDisplay(next))
   saveConfig()
