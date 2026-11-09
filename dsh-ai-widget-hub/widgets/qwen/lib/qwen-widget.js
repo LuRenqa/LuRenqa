@@ -2147,6 +2147,20 @@ bubbleSizeInput.addEventListener('input', function () { applyBubbleSize(bubbleSi
 bubbleSizeNumber.addEventListener('input', function () { applyBubbleSize(bubbleSizeNumber.value) })
 bubbleSizeNumber.addEventListener('change', function () { applyBubbleSize(bubbleSizeNumber.value) })
 applyBubbleSize(bubbleSizeLevel)
+// —— 角色形态切换按钮（专属色块）——
+var rowForm = menuRow()
+rowForm.appendChild(menuLabel('角色形态'))
+var formToggleBtn = document.createElement('button')
+formToggleBtn.type = 'button'
+formToggleBtn.className = 'dshqwv-roleimport'
+formToggleBtn.style.flex = '1'
+formToggleBtn.style.background = '#7cc8f0'
+formToggleBtn.style.color = '#123a55'
+formToggleBtn.style.fontWeight = '600'
+formToggleBtn.textContent = '形态：状态1'
+formToggleBtn.title = '点击切换角色形态（状态1 / 状态2）'
+formToggleBtn.addEventListener('click', function (e) { e.stopPropagation(); qwenToggleForm() })
+rowForm.appendChild(formToggleBtn)
 var rowBubbleSize = menuRow()
 rowBubbleSize.appendChild(menuLabel('气泡大小'))
 rowBubbleSize.appendChild(bubbleSizeInput)
@@ -2222,6 +2236,7 @@ roleImportBtn.addEventListener('click', function (e) { e.stopPropagation(); role
 roleFileInput.addEventListener('change', function () { onRoleFileChosen(roleFileInput) })
 menuBox.appendChild(rowRole)
 menuBox.appendChild(row1)
+menuBox.appendChild(rowForm)
 menuBox.appendChild(rowBubbleSize)
 menuBox.appendChild(row2)
 menuBox.appendChild(row6)
@@ -18800,7 +18815,7 @@ function bubblePreviewInto(container, mods, widthPx, opts) {
 // 手势：**2 秒内连续点击 3 下**切换一次（形态1 ↔ 形态2）；第二形态默认大小比形态1大 3 档（0.3 scale）。
 // 只对内置默认角色生效；用户自定义角色 / 动态角色不参与切换。
 var qwenFormAlt = false
-var qwenClickTimes = []
+var qwenLastClickAt = 0
 var QWEN_FORM2_EXTRA = 0.3
 function qwenToggleForm() {
   try {
@@ -18814,6 +18829,7 @@ function qwenToggleForm() {
     img.src = url
     // 性能：两态剪影接近，沿用形态1的命中图，切形态时不再重算 610×610 命中画布（省掉解码/凸包/回流）
     applyArtScale()
+    try { formToggleBtn.textContent = qwenFormAlt ? '形态：状态2' : '形态：状态1' } catch (err) {}
   } catch (err) {}
 }
 // 状态2 只把**角色本体**放大 3 档（气泡 / 菜单 / 命中框都保持原尺寸）：
@@ -18830,15 +18846,10 @@ function applyArtScale() {
 }
 function qwenClick() {
   try {
-    // 2 秒内连续 3 下 = 切换双形态（这一下不再推进气泡）
+    // 点击冷却：上一次点击动画/音效未播放完前，忽略新的点击（防连点抢动画 / 叠音）
     var qwenNow = Date.now()
-    qwenClickTimes = qwenClickTimes.filter(function (t) { return qwenNow - t <= 2000 })
-    qwenClickTimes.push(qwenNow)
-    if (qwenClickTimes.length >= 3) {
-      qwenClickTimes = []
-      qwenToggleForm()
-      return
-    }
+    if (qwenLastClickAt && qwenNow - qwenLastClickAt < 700) return
+    qwenLastClickAt = qwenNow
     if (!bubbleOn) return
     if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert')) return // 消耗/预警提醒期间点千问娘不动作(点泡泡才关)
     if (!bubbleShown) {

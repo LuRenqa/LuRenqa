@@ -1647,6 +1647,20 @@ bubbleSizeInput.addEventListener('input', function () { applyBubbleSize(bubbleSi
 bubbleSizeNumber.addEventListener('input', function () { applyBubbleSize(bubbleSizeNumber.value) })
 bubbleSizeNumber.addEventListener('change', function () { applyBubbleSize(bubbleSizeNumber.value) })
 applyBubbleSize(bubbleSizeLevel)
+// —— 角色形态切换按钮（专属色块）——
+var rowForm = menuRow()
+rowForm.appendChild(menuLabel('角色形态'))
+var formToggleBtn = document.createElement('button')
+formToggleBtn.type = 'button'
+formToggleBtn.className = 'dshgnv-roleimport'
+formToggleBtn.style.flex = '1'
+formToggleBtn.style.background = '#10a37f'
+formToggleBtn.style.color = '#ffffff'
+formToggleBtn.style.fontWeight = '600'
+formToggleBtn.textContent = '形态：状态1'
+formToggleBtn.title = '点击切换角色形态（状态1 / 状态2）'
+formToggleBtn.addEventListener('click', function (e) { e.stopPropagation(); gptToggleForm() })
+rowForm.appendChild(formToggleBtn)
 var rowBubbleSize = menuRow()
 rowBubbleSize.appendChild(menuLabel('气泡大小'))
 rowBubbleSize.appendChild(bubbleSizeInput)
@@ -1722,6 +1736,7 @@ roleImportBtn.addEventListener('click', function (e) { e.stopPropagation(); role
 roleFileInput.addEventListener('change', function () { onRoleFileChosen(roleFileInput) })
 menuBox.appendChild(rowRole)
 menuBox.appendChild(row1)
+menuBox.appendChild(rowForm)
 menuBox.appendChild(rowBubbleSize)
 menuBox.appendChild(row2)
 menuBox.appendChild(row6)
@@ -13022,7 +13037,7 @@ function bubblePreviewInto(container, mods, widthPx) {
 // 手势：**2 秒内连续点击 3 下**切换一次（形态1 ↔ 形态2）；第二形态的默认大小比形态1大 3 档（0.3 scale）。
 // 只对内置默认角色生效；用户自定义角色 / 动态角色不参与切换。
 var gptFormAlt = false
-var gptClickTimes = []
+var gptLastClickAt = 0
 var GPT_FORM2_EXTRA = 0.3
 function gptToggleForm() {
   try {
@@ -13037,6 +13052,7 @@ function gptToggleForm() {
     // 性能：两态剪影接近，沿用形态1的命中图，切形态时不再重算 610×610 命中画布（省掉解码/凸包/回流）
     // 用 setScale 重算一次：状态2 在用户设定的大小上再 +3 档，并保持右下角锚点
     applyArtScale()
+    try { formToggleBtn.textContent = gptFormAlt ? '形态：状态2' : '形态：状态1' } catch (err) {}
   } catch (err) {}
 }
 // 状态2 只把**角色本体**放大 3 档（气泡 / 菜单 / 命中框都保持原尺寸）：
@@ -13053,15 +13069,10 @@ function applyArtScale() {
 }
 function gptniangClick() {
   try {
-    // 2 秒内连续 3 下 = 切换双形态（这一下不再推进气泡）
+    // 点击冷却：上一次点击动画/音效未播放完前，忽略新的点击（防连点抢动画 / 叠音）
     var gptNow = Date.now()
-    gptClickTimes = gptClickTimes.filter(function (t) { return gptNow - t <= 2000 })
-    gptClickTimes.push(gptNow)
-    if (gptClickTimes.length >= 3) {
-      gptClickTimes = []
-      gptToggleForm()
-      return
-    }
+    if (gptLastClickAt && gptNow - gptLastClickAt < 700) return
+    gptLastClickAt = gptNow
     if (!bubbleOn) return
     if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert')) return // 消耗/预警提醒期间点GPT娘不动作(点泡泡才关)
     if (!bubbleShown) {

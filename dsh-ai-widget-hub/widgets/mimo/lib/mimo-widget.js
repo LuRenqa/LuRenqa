@@ -583,7 +583,7 @@ var css = [
   // 事件直接进入 iframe 自己的文档，主文档收不到 ⇒ MIMO娘身体失联（点不动、拖不动，只有 ☰ 能用）。
   // 代价是 img 的**矩形**（含透明边距）会吞掉点击 → 由 setupHitTest() 用命中图的**凸包**做 clip-path
   // 裁掉透明区（凸包包含全部不透明像素，不会裁到角色本身），"点到透明处穿透到下层"的行为得以保留。
-  '.dshmmv-img{position:absolute;right:0;bottom:0;width:59.45%;height:59.45%;display:block;pointer-events:auto;-webkit-user-drag:none;user-select:none;object-fit:contain;object-position:right bottom}',
+  '.dshmmv-img{position:absolute;right:0;bottom:0;width:calc(59.45% * var(--dshmmv-art-scale, 1));height:calc(59.45% * var(--dshmmv-art-scale, 1));display:block;pointer-events:auto;-webkit-user-drag:none;user-select:none;object-fit:contain;object-position:right bottom}',
   // v751（PR #119）：光标不再写 document.body.style.cursor —— cursor 是可继承属性，写 <body> 会让 Blink
   // 失效**整棵文档树**的样式；而它在点击链路上按下/抬手各写一次，紧接着 ismimoHit() 的
   // getBoundingClientRect() 与泡泡行测量的 getComputedStyle()/scrollWidth 会强制刷新样式+布局，
@@ -2147,6 +2147,20 @@ bubbleSizeInput.addEventListener('input', function () { applyBubbleSize(bubbleSi
 bubbleSizeNumber.addEventListener('input', function () { applyBubbleSize(bubbleSizeNumber.value) })
 bubbleSizeNumber.addEventListener('change', function () { applyBubbleSize(bubbleSizeNumber.value) })
 applyBubbleSize(bubbleSizeLevel)
+// —— 角色形态切换按钮（专属色块）——
+var rowForm = menuRow()
+rowForm.appendChild(menuLabel('角色形态'))
+var formToggleBtn = document.createElement('button')
+formToggleBtn.type = 'button'
+formToggleBtn.className = 'dshmmv-roleimport'
+formToggleBtn.style.flex = '1'
+formToggleBtn.style.background = '#ff6a00'
+formToggleBtn.style.color = '#ffffff'
+formToggleBtn.style.fontWeight = '600'
+formToggleBtn.textContent = '形态：状态1'
+formToggleBtn.title = '点击切换角色形态（状态1 / 状态2）'
+formToggleBtn.addEventListener('click', function (e) { e.stopPropagation(); mimoToggleForm() })
+rowForm.appendChild(formToggleBtn)
 var rowBubbleSize = menuRow()
 rowBubbleSize.appendChild(menuLabel('气泡大小'))
 rowBubbleSize.appendChild(bubbleSizeInput)
@@ -2222,6 +2236,7 @@ roleImportBtn.addEventListener('click', function (e) { e.stopPropagation(); role
 roleFileInput.addEventListener('change', function () { onRoleFileChosen(roleFileInput) })
 menuBox.appendChild(rowRole)
 menuBox.appendChild(row1)
+menuBox.appendChild(rowForm)
 menuBox.appendChild(rowBubbleSize)
 menuBox.appendChild(row2)
 menuBox.appendChild(row6)
@@ -18798,15 +18813,10 @@ function bubblePreviewInto(container, mods, widthPx, opts) {
 //  - 正显示第 1 次点击泡泡:不切换内容,仅重置留存计时
 function mimoClick() {
   try {
-    // 2 秒内连续 3 下 = 切换双形态（这一下不再推进气泡）
+    // 点击冷却：上一次点击动画/音效未播放完前，忽略新的点击（防连点抢动画 / 叠音）
     var mimoNow = Date.now()
-    mimoClickTimes = mimoClickTimes.filter(function (t) { return mimoNow - t <= 2000 })
-    mimoClickTimes.push(mimoNow)
-    if (mimoClickTimes.length >= 3) {
-      mimoClickTimes = []
-      mimoToggleForm()
-      return
-    }
+    if (mimoLastClickAt && mimoNow - mimoLastClickAt < 700) return
+    mimoLastClickAt = mimoNow
     if (!bubbleOn) return
     if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert')) return // 消耗/预警提醒期间点MIMO娘不动作(点泡泡才关)
     if (!bubbleShown) {
@@ -18855,7 +18865,14 @@ function bubbleNext() {
 // 手势：**2 秒内连续点击 3 下**切换一次（图一 → 图二；再连点 3 下切回图一），与气泡开关无关。
 // 只对内置默认角色生效；用户自定义角色 / 动态角色不参与切换。
 var mimoFormAlt = false
-var mimoClickTimes = []
+var mimoLastClickAt = 0
+// MIMO：两种形态默认角色大小相同，且都比基础大 3 档（只作用于角色图片，气泡不放大）。
+function applyArtScale() {
+  try {
+    var ratio = (state.scale + 0.3) / Math.max(0.1, state.scale)
+    root.style.setProperty('--dshmmv-art-scale', String(ratio))
+  } catch (err) {}
+}
 function mimoToggleForm() {
   try {
     if (!currentRole || currentRole.id !== 'default') return
@@ -18867,6 +18884,8 @@ function mimoToggleForm() {
     try { applyHitClip('') } catch (err) {}
     img.src = url
     // 性能：两态剪影接近，沿用形态1的命中图，切形态时不再重算 610×610 命中画布（省掉解码/凸包/回流）
+    try { formToggleBtn.textContent = mimoFormAlt ? '形态：状态2' : '形态：状态1' } catch (err) {}
+    try { applyArtScale() } catch (err) {}
   } catch (err) {}
 }
 // —— 覆盖旧实现 ——
@@ -19717,6 +19736,7 @@ function setScale(v) {
   var fy = rect.bottom
   state.scale = next
   root.style.setProperty('--dshmm-scale', String(next))
+  applyArtScale()
   scaleInput.value = String(next)
   scaleNumber.value = String(scaleToDisplay(next))
   saveConfig()
@@ -22487,6 +22507,7 @@ function sizeCfgApply(d) {
       scaleInput.value = String(d.scale)
       scaleNumber.value = String(scaleToDisplay(d.scale))
       settle()
+      try { applyArtScale() } catch (err) {}
     }
     // v866：按压/松开音的独立开关（缺字段时沿用现有值，绝不落默认 —— 与宿主 issue #97 的约定一致）
     if (d && typeof d.pressOn === 'boolean') {
