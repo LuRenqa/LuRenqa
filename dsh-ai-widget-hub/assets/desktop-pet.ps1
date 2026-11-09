@@ -11,6 +11,36 @@ $script:Pets = @{}
 $script:Players = New-Object System.Collections.ArrayList
 $script:Session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
 $script:ConfigMtime = [datetime]::MinValue
+$script:PidFile = $PosFile + '.pid'
+$script:Mutex = $null
+try {
+  $mutex = New-Object System.Threading.Mutex($false, 'GlobalDshAiHubDesktopPetHelper')
+  if (-not $mutex.WaitOne(0)) {
+    # 已有旧助手：按 pid 文件杀掉它再接管，避免出现两只桌面 AI娘
+    try {
+      if (Test-Path -LiteralPath $script:PidFile) {
+        $oldPid = 0
+        try { $oldPid = [int]((Get-Content -LiteralPath $script:PidFile -Raw) -replace '[^0-9]', '') } catch {}
+        if ($oldPid -gt 0 -and $oldPid -ne $PID) { Stop-Process -Id $oldPid -Force -ErrorAction SilentlyContinue }
+      }
+    } catch {}
+    Start-Sleep -Milliseconds 500
+    if (-not $mutex.WaitOne(4000)) { exit }
+  }
+  $script:Mutex = $mutex
+  try {
+    # 清理旧版本助手（0.2.20 及更早没有 Mutex/pid 文件，DSH 重启后会变孤儿进程 → 出现两只桌面 AI娘）
+    $allHelpers = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue
+    foreach ($hp in @($allHelpers)) {
+      if ($null -eq $hp) { continue }
+      if ($hp.ProcessId -ne $PID -and $hp.CommandLine -and $hp.CommandLine -like '*desktop-pet.ps1*') {
+        try { Stop-Process -Id $hp.ProcessId -Force -ErrorAction SilentlyContinue } catch {}
+      }
+    }
+  } catch {}
+  Start-Sleep -Milliseconds 250
+  try { Set-Content -LiteralPath $script:PidFile -Value $PID -Encoding ASCII } catch {}
+} catch {}
 $script:App = New-Object System.Windows.Application
 $script:App.ShutdownMode = [System.Windows.ShutdownMode]::OnExplicitShutdown
 
@@ -345,6 +375,7 @@ function New-Pet($cfg) {
   $grid.ContextMenu = $menu
 
   $script:Pets[$id] = $st
+  try { $btnForm.Tag = $st; $btnDesk.Tag = $st } catch {}
   $win.Add_Closed({ param($sender, $e) try { $script:Pets.Remove([string]$sender.Tag.Cfg.id) | Out-Null } catch {} })
   $win.Show()
   return $st
@@ -374,7 +405,13 @@ function Sync-Config() {
     if ($info.LastWriteTime -le $script:ConfigMtime) { return }
     $script:ConfigMtime = $info.LastWriteTime
     $cfg = Read-JsonFile $ConfigFile
-    if (-not $cfg -or -not $cfg.pets) { return }
+    if (-not $cfg) { return }
+    $pets = @()
+    try { $pets = @($cfg.pets) } catch {}
+    if ($pets.Count -eq 0) {
+      foreach ($pid2 in @($script:Pets.Keys)) { Close-Pet $pid2 }
+      return
+    }
 
     if (-not [string]::IsNullOrWhiteSpace([string]$cfg.authUrl)) { Ensure-Session ([string]$cfg.authUrl) }
 
@@ -408,4 +445,12 @@ $idleTimer.add_Tick({
 $idleTimer.Start()
 
 Sync-Config
-[void]$script:App.Run()
+try { [void]$script:App.Run() } finally {
+  try {
+    if (Test-Path -LiteralPath $script:PidFile) {
+      $cur = (Get-Content -LiteralPath $script:PidFile -Raw) -replace '[^0-9]', ''
+      if ($cur -eq "$PID") { Remove-Item -LiteralPath $script:PidFile -Force -ErrorAction SilentlyContinue }
+    }
+  } catch {}
+  try { if ($script:Mutex) { $script:Mutex.ReleaseMutex() } } catch {}
+}

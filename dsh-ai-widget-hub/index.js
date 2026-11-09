@@ -402,13 +402,22 @@ export default {
     }
     function stopDesktopHelper() {
       if (desktopChild === null) return
-      try { desktopChild.kill() } catch (err) {}
+      const pid = desktopChild.pid
       desktopChild = null
+      try {
+        // 杀掉整棵进程树（仅 kill 父 powershell 可能留下孤儿窗口，导致出现两只桌面 AI娘）
+        const killer = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true })
+        killer.on('error', () => {})
+      } catch (err) {}
     }
     function syncDesktopHelper() {
       try {
         const pets = desktopPets().length
-        if (pets === 0) { stopDesktopHelper(); return }
+        if (pets === 0) {
+          try { writeDesktopConfig() } catch (err) {}
+          stopDesktopHelper()
+          return
+        }
         writeDesktopConfig()
         if (desktopChild !== null && desktopChild.exitCode === null) return
         const args = [

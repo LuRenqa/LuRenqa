@@ -65,6 +65,9 @@
     冷却内该挂件忽略新点击；计时变量在各自 script 内，互不影响。
 18. **v0.2.13**：Client 面板按 `widgets.enabled === true` 统计数量，`enabledCount >= 4` 时在 header 渲染
     `.dshaihub-memwarn` 警告条（「开启过多AI娘可能引起卡顿，请合理规划内存。」）。
+26. **v0.2.21**：桌面助手单实例（`Global\DshAiHubDesktopPetHelper` Mutex + `<pos>.pid`，冲突时杀掉旧 pid）；
+    Sync-Config 在 pets 为空时关闭全部窗口；Host stopDesktopHelper 改 `taskkill /PID /T /F`，关闭前先写空配置；
+    桌面按钮 Tag 在 `$st` 创建后重新赋值（此前为 null 导致点击无效）。
 25. **v0.2.20 防卡死重新居中**：Client 工具栏按钮 → dispatch `dsh-ai-hub:recenter` + `POST /dsh-ai-hub/recenter`；
     9 只挂件新增 `<id>Recenter()`（snapConfig.mode=off + state.left/top 居中 + express/saveConfig）；
     Host recenter 停止桌面助手、删 `.pos.json`、重新 sync（助手默认位置改为 WorkArea 居中，多只错开）。
