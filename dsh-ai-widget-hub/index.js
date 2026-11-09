@@ -48,6 +48,7 @@ const STATE_FILE = path.join(DSH_HOME, 'dsh-ai-widget-hub.json')
 const RUNTIME_DIAG_FILE = path.join(DSH_HOME, 'dsh-ai-widget-hub.runtime.json')
 const DESKTOP_CONFIG_FILE = path.join(DSH_HOME, 'dsh-ai-widget-hub.desktop.json')
 const DESKTOP_POS_FILE = path.join(DSH_HOME, 'dsh-ai-widget-hub.desktop.pos.json')
+const DESKTOP_OFF_FILE = DESKTOP_POS_FILE + '.off'
 const DESKTOP_HELPER = path.join(PKG_ROOT, 'assets', 'desktop-pet.ps1')
 const DESKTOP_PS = 'powershell.exe'
 /** 每只挂件在桌面上使用的两张角色图（相对 widgets/<id>/assets/）。 */
@@ -434,6 +435,26 @@ export default {
       }
     }
 
+    // 助手「关闭桌面」按钮：助手只写 off 信号文件并立刻关窗，这里低频轮询同步状态
+    const desktopOffTimer = setInterval(() => {
+      try {
+        if (!fs.existsSync(DESKTOP_OFF_FILE)) return
+        const text = fs.readFileSync(DESKTOP_OFF_FILE, 'utf8')
+        try { fs.rmSync(DESKTOP_OFF_FILE, { force: true }) } catch (err) {}
+        const ids = String(text).split(/s+/).filter(Boolean)
+        let changed = false
+        for (const id of ids) {
+          if (state.desktop[id] === true) { state.desktop[id] = false; changed = true }
+        }
+        if (changed) {
+          saveState(state)
+          syncDesktopHelper()
+        }
+      } catch (err) {}
+    }, 1200)
+    // 不让定时器阻止进程退出（smoke / 测试脚本用）
+    try { if (typeof desktopOffTimer.unref === 'function') desktopOffTimer.unref() } catch (err) {}
+
     /** 挂载一只内嵌挂件，返回 { ok, fiber?, error? }。 */
     function mountWidget(id) {
       if (mounted.has(id)) return { ok: true, fiber: mounted.get(id) }
@@ -781,12 +802,21 @@ export default {
                 state.desktop[widget.id] = target
               }
               saveState(state)
-              syncDesktopHelper()
-              sendJson(res, 200, {
-                ok: true,
-                enabled: target,
-                widgets: CATALOG.map((widget) => ({ id: widget.id, desktop: state.desktop[widget.id] === true })),
-              })
+              if (target) {
+                syncDesktopHelper()
+                sendJson(res, 200, {
+                  ok: true,
+                  enabled: target,
+                  widgets: CATALOG.map((widget) => ({ id: widget.id, desktop: state.desktop[widget.id] === true })),
+                })
+              } else {
+                sendJson(res, 200, {
+                  ok: true,
+                  enabled: target,
+                  widgets: CATALOG.map((widget) => ({ id: widget.id, desktop: state.desktop[widget.id] === true })),
+                })
+                setImmediate(() => { try { syncDesktopHelper() } catch (err) {} })
+              }
             } catch (err) {
               sendJson(res, 500, { ok: false, error: { code: 'desktop-toggle-failed', message: String((err && err.message) || err) } })
             }
@@ -902,6 +932,7 @@ export default {
         }
         mounted.clear()
         try { stopDesktopHelper() } catch (err3) {}
+        try { clearInterval(desktopOffTimer) } catch (err4) {}
       })
     } catch (err) {
       /* ignore */

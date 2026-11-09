@@ -161,20 +161,12 @@ function Toggle-PetForm($st) {
 }
 
 function Disable-Desktop($st) {
-  $ok = $false
+  # 不在这里同步发 HTTP（会在 UI 线程上等好几秒 → 看起来像卡死）。
+  # 只写一个 off 信号文件并立即关窗口，由 Host 轮询处理状态。
   try {
-    $api = [string]$st.Cfg.apiUrl
-    if (-not [string]::IsNullOrWhiteSpace($api)) {
-      $body = (@{ id = [string]$st.Cfg.id; enabled = $false } | ConvertTo-Json -Compress)
-      Invoke-WebRequest -Uri $api -Method POST -WebSession $script:Session -ContentType 'application/json' -Body $body -UseBasicParsing -TimeoutSec 6 | Out-Null
-      $ok = $true
-    }
+    Add-Content -LiteralPath ($PosFile + '.off') -Value ([string]$st.Cfg.id) -Encoding UTF8
   } catch {}
-  if ($ok) {
-    try { $st.Win.Close() } catch {}
-  } else {
-    try { $st.Text.Text = '关闭桌面失败，请到 DSH 面板操作'; $st.Bubble.Visibility = [System.Windows.Visibility]::Visible } catch {}
-  }
+  try { $st.Win.Close() } catch {}
 }
 
 function New-Pet($cfg) {
