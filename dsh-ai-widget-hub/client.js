@@ -34,6 +34,7 @@ window.__ModuleLoader__.load({
     var NS = 'aiWidgetHub';
     var API_STATE = '/dsh-ai-hub/state';
     var API_TOGGLE = '/dsh-ai-hub/toggle';
+    var API_BULK = '/dsh-ai-hub/toggle-all';
     var OFF_PREFIX = 'dshaihub-off-';
     var POLL_MS = 12000; // 性能：面板状态轮询降频，减少与挂件同时渲染
 
@@ -353,6 +354,33 @@ window.__ModuleLoader__.load({
           if (!data || data.ok !== true) {
             var message = data && data.error && data.error.message ? data.error.message : 'toggle rejected';
             throw new Error(message);
+          }
+          return data;
+        });
+      });
+    }
+
+    /** 一键开/关全部：一次请求由 Host 并行挂载/卸载，避免 9 次串行往返。 */
+    function requestBulk(enabled) {
+      return fetch(API_BULK, {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ enabled: enabled === true }),
+      }).then(function (res) {
+        return res.text().then(function (text) {
+          var data = null;
+          try {
+            data = text ? JSON.parse(text) : null;
+          } catch (err) {
+            data = null;
+          }
+          if (!res.ok) {
+            throw new Error((data && data.error && data.error.message) || ('HTTP ' + res.status));
+          }
+          if (!data || data.ok !== true) {
+            throw new Error((data && data.error && data.error.message) || 'bulk toggle rejected');
           }
           return data;
         });
@@ -800,11 +828,14 @@ window.__ModuleLoader__.load({
         });
       }
 
-      /** 全部开启 / 全部关闭：串行调用 toggle，避免同时打一堆 Host 请求。 */
+      /**
+       * 全部开启 / 全部关闭：一次批量请求，Host 内部并行挂载/卸载。
+       * UI 先乐观更新（CSS 立即隐藏/显示），成功后再按 Host 返回的权威状态校正，并错峰补挂件脚本。
+       */
       function runBulk(target) {
         if (bulkRef.current) return;
-        var targets = [];
         var current = widgetsRef.current;
+        var targets = [];
         for (var i = 0; i < current.length; i++) {
           var w = current[i];
           if (w.installed === false) continue;
@@ -818,27 +849,50 @@ window.__ModuleLoader__.load({
         bulkRef.current = true;
         setBulk(target ? 'on' : 'off');
 
-        var ok = 0;
-        var fail = 0;
-        var chain = Promise.resolve();
-        var step = function (index) {
-          if (index >= targets.length) return Promise.resolve();
-          if (!aliveRef.current) return Promise.resolve();
-          return toggleWidget(targets[index], target, true).then(function (result) {
-            if (result.ok) ok += 1;
-            if (result.fail) fail += 1;
-            return step(index + 1);
-          });
-        };
-        // 用递归 promise 串行（不能用 for + await：这里坚持 ES5 风格的可读写法）
-        chain = step(0).then(function () {
-          bulkRef.current = false;
+        var snapshot = [];
+        for (var s0 = 0; s0 < targets.length; s0++) {
+          snapshot.push({ id: targets[s0].id, enabled: targets[s0].enabled === true });
+          updateWidget(targets[s0].id, { enabled: target }); // 乐观更新
+        }
+        applyGateClasses(widgetsRef.current);
+
+        requestBulk(target).then(function (result) {
           if (!aliveRef.current) return;
-          setBulk('');
+          var byId = {};
+          var list = Array.isArray(result.widgets) ? result.widgets : [];
+          for (var k = 0; k < list.length; k++) byId[list[k].id] = list[k].enabled === true;
+          var fail = 0;
+          for (var m = 0; m < targets.length; m++) {
+            var id = targets[m].id;
+            var actual = Object.prototype.hasOwnProperty.call(byId, id) ? byId[id] : target;
+            if (actual !== target) {
+              fail += 1;
+              updateWidget(id, { enabled: !target });
+              continue;
+            }
+            updateWidget(id, { enabled: actual });
+            if (target) scheduleBulkScript(targets[m], m * 140);
+          }
+          applyGateClasses(widgetsRef.current);
           if (fail > 0) setNotice({ kind: 'warn', text: t('bulkFailed', { n: fail }) });
-          else setNotice({ kind: 'ok', text: t('bulkDone', { n: ok }) });
+          else setNotice({ kind: 'ok', text: t('bulkDone', { n: targets.length }) });
+        }).catch(function (err) {
+          if (!aliveRef.current) return;
+          for (var n = 0; n < snapshot.length; n++) updateWidget(snapshot[n].id, { enabled: snapshot[n].enabled });
+          applyGateClasses(widgetsRef.current);
+          setNotice({ kind: 'error', text: t('noticeFailed', { message: errorMessage(err) }) });
+        }).then(function () {
+          bulkRef.current = false;
+          if (aliveRef.current) setBulk('');
         });
-        chain.catch(function () { /* 各步内部已兜底，这里只保护 promise 链 */ });
+      }
+
+      /** 批量开启时错峰补挂件脚本，避免 9 个 22k 行脚本同一帧初始化造成卡顿。 */
+      function scheduleBulkScript(widget, delay) {
+        window.setTimeout(function () {
+          if (!aliveRef.current || !widget) return;
+          try { ensureWidgetScript(widget); } catch (err) {}
+        }, Math.max(0, delay));
       }
 
       // 首次加载 + 5s 轮询 + 窗口 focus 刷新；卸载时全部清理

@@ -339,7 +339,14 @@ var SIZE_URL = '/dsh-gptniang/size.json'
 var IMG_URL = '/dsh-gptniang/image.png?v=2'
 var IMG2_URL = '/dsh-gptniang/image2.png?v=1'
 // 性能：延迟预热状态2图片，首次切换形态时不卡在 fetch/解码
-setTimeout(function () { try { var p = new Image(); p.decoding = 'async'; p.src = IMG2_URL } catch (err) {} }, 2500 + Math.floor(Math.random() * 2500))
+setTimeout(function () {
+  try {
+    var p = new Image()
+    p.decoding = 'async'
+    p.onload = function () { try { p.decode().catch(function () {}) } catch (err) {} }
+    p.src = IMG2_URL
+  } catch (err) {}
+}, 1200 + Math.floor(Math.random() * 1800))
 var GIF_URL = '/dsh-gptniang/rua.gif'
 var BUBBLE_URL = '/dsh-gptniang/bubble.json'
 
@@ -12977,9 +12984,7 @@ function gptToggleForm() {
     gptFormAlt = !gptFormAlt
     var url = gptFormAlt ? IMG2_URL : IMG_URL
     img.src = url
-    hitReady = false
-    hitFailed = false
-    setupHitTest(url)
+    // 性能：两态剪影接近，沿用形态1的命中图，切形态时不再重算 610×610 命中画布（省掉解码/凸包/回流）
     // 用 setScale 重算一次：状态2 在用户设定的大小上再 +3 档，并保持右下角锚点
     applyArtScale()
   } catch (err) {}
@@ -13070,6 +13075,12 @@ function hideBubble() {
   bubbleRandomLines = null
   lastHintText = null
   bubbleCloseVisual()
+}
+// 性能：多只挂件同时检测到同一轮结束时，错开 0.1~2.6 秒弹消耗泡泡，避免同帧多个泡泡一起动画
+function scheduleCostBubble(amount) {
+  try {
+    setTimeout(function () { try { showCostBubble(amount) } catch (err) {} }, 100 + Math.floor(Math.random() * 2500))
+  } catch (err) { showCostBubble(amount) }
 }
 function showCostBubble(amount) {
   if (!bubbleOn || !turnCostOn) return
@@ -16385,7 +16396,7 @@ function pollLastTurn() {
             try { localStorage.setItem('dshgn-last-seq', String(lastCostSeq)) } catch (err) {}
             playTaskEndSound()
             if (d.turn !== null && d.amount !== null) {
-              showCostBubble(Number(d.amount))
+              scheduleCostBubble(Number(d.amount))
             }
           } else {
             // 记忆值已过期（host 端重置/文件丢失）：拉齐到当前值，避免永久不弹
@@ -16399,7 +16410,7 @@ function pollLastTurn() {
           try { localStorage.setItem('dshgn-last-seq', String(lastCostSeq)) } catch (err) {}
           playTaskEndSound()
           if (d.turn !== null && d.amount !== null) {
-            showCostBubble(Number(d.amount))
+            scheduleCostBubble(Number(d.amount))
           }
         }
       })

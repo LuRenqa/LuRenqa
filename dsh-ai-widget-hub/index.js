@@ -48,6 +48,7 @@ const RUNTIME_DIAG_FILE = path.join(DSH_HOME, 'dsh-ai-widget-hub.runtime.json')
 
 const STATE_PATH = '/dsh-ai-hub/state'
 const TOGGLE_PATH = '/dsh-ai-hub/toggle'
+const TOGGLE_ALL_PATH = '/dsh-ai-hub/toggle-all'
 const ICON_PREFIX = '/dsh-ai-hub/icon'
 
 const MAX_BODY_BYTES = 16 * 1024
@@ -552,6 +553,84 @@ export default {
           }),
         )
 
+
+        // POST /dsh-ai-hub/toggle-all —— 一键开/关全部（一次请求，挂载/卸载并行）
+        register(
+          'exact',
+          TOGGLE_ALL_PATH,
+          routed(async (req, res) => {
+            const method = String((req && req.method) || 'GET').toUpperCase()
+            if (method !== 'POST') {
+              sendMethodNotAllowed(res, 'POST')
+              return
+            }
+            let payload
+            try {
+              payload = await readJsonBody(req, MAX_BODY_BYTES)
+            } catch (err) {
+              const code = (err && err.code) || 'bad-request'
+              sendJson(res, code === 'body-too-large' ? 413 : 400, {
+                ok: false,
+                error: { code, message: String((err && err.message) || err) },
+              })
+              return
+            }
+            if (payload === null || typeof payload !== 'object' || Array.isArray(payload) || typeof payload.enabled !== 'boolean') {
+              sendJson(res, 400, { ok: false, error: { code: 'bad-json', message: 'body must be { enabled: boolean }' } })
+              return
+            }
+            const target = payload.enabled
+            const failures = {}
+            const changed = []
+            try {
+              if (target) {
+                const waits = []
+                for (const widget of CATALOG) {
+                  if (mounted.has(widget.id)) continue
+                  const result = mountWidget(widget.id)
+                  if (!result.ok) { failures[widget.id] = result.error; continue }
+                  changed.push(widget.id)
+                  if (result.fiber && typeof result.fiber.then === 'function') waits.push(Promise.resolve(result.fiber).catch(() => {}))
+                }
+                if (waits.length) await Promise.all(waits)
+              } else {
+                const jobs = []
+                for (const widget of CATALOG) {
+                  if (!mounted.has(widget.id)) continue
+                  changed.push(widget.id)
+                  jobs.push({ id: widget.id, p: unmountWidget(widget.id) })
+                }
+                const results = await Promise.all(jobs.map((job) => job.p))
+                for (let i = 0; i < results.length; i++) {
+                  if (!results[i]) failures[jobs[i].id] = "unmount failed"
+                }
+              }
+              for (const widget of CATALOG) {
+                if (failures[widget.id] !== undefined) continue
+                state.enabled[widget.id] = target
+              }
+              saveState(state)
+              writeRuntimeDiag(mounted, failures)
+              sendJson(res, 200, {
+                ok: true,
+                enabled: target,
+                changed,
+                application: 'applied',
+                widgets: CATALOG.map((widget) => ({ id: widget.id, enabled: mounted.has(widget.id) })),
+                failures,
+              })
+            } catch (err) {
+              sendJson(res, 200, {
+                ok: false,
+                enabled: target,
+                changed,
+                application: 'failed',
+                widgets: CATALOG.map((widget) => ({ id: widget.id, enabled: mounted.has(widget.id) })),
+                error: { code: 'toggle-all-failed', message: String((err && err.message) || err) },
+              })
+            }
+          }),
+        )
         // 图标：每个 id 一条 exact 路由
         const iconCache = new Map()
         function iconBytes(iconFile) {

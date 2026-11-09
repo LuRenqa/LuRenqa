@@ -43,6 +43,9 @@
 11. **v0.2.6 性能**（多只同开）：① 轮询 1000ms → 3000ms + 随机相位；页面 hidden 时跳过；余额刷新错峰；
    ② TTL 巡检 1000ms → 2000ms；③ 形态切换去掉 `setScale`（避免强制回流 + 写配置），改 `applyArtScale()`；
    ④ 状态2 图片延迟预热 `new Image()`；命中图 clip 按 URL 缓存；⑤ hub 面板轮询 5s → 12s。
+12. **v0.2.7 性能·第二轮**：① 形态切换去掉 `setupHitTest`（沿用形态1命中图）；② 消耗泡泡 `scheduleCostBubble` 错峰 0.1~2.6s；
+    ③ 新增 `POST /dsh-ai-hub/toggle-all`（Host 并行 mount/unmount，一次 `saveState`）；
+    ④ Client「全部开启/全部关闭」改为一次批量请求 + 权威状态校正 + 140ms 错峰补脚本。
 
 ## 0. 关键结论（已由 Lead 实测/查证，不要再自行推翻）
 
