@@ -65,6 +65,9 @@
     冷却内该挂件忽略新点击；计时变量在各自 script 内，互不影响。
 18. **v0.2.13**：Client 面板按 `widgets.enabled === true` 统计数量，`enabledCount >= 4` 时在 header 渲染
     `.dshaihub-memwarn` 警告条（「开启过多AI娘可能引起卡顿，请合理规划内存。」）。
+25. **v0.2.20 防卡死重新居中**：Client 工具栏按钮 → dispatch `dsh-ai-hub:recenter` + `POST /dsh-ai-hub/recenter`；
+    9 只挂件新增 `<id>Recenter()`（snapConfig.mode=off + state.left/top 居中 + express/saveConfig）；
+    Host recenter 停止桌面助手、删 `.pos.json`、重新 sync（助手默认位置改为 WorkArea 居中，多只错开）。
 24. **v0.2.19**：桌面宠物拖动用 `PresentationSource.CompositionTarget.TransformFromDevice` 把物理像素差转成 DIP；
     窗口左上角常驻「切换形态 / 关闭桌面」按钮（关闭桌面走 `cfg.apiUrl` POST + WebSession cookie），右键菜单同样加入。
 23. **v0.2.18**：Client 修复 WidgetCard 未定义 accent；Host 恢复 WPF 桌面助手（`assets/desktop-pet.ps1`，写配置+启动 powershell）；

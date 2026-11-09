@@ -241,10 +241,10 @@ function New-Pet($cfg) {
     try { $left = [double]$script:Pos[$id][0]; $top = [double]$script:Pos[$id][1] } catch {}
   }
   if ($null -eq $left) {
-    $sw = [System.Windows.SystemParameters]::PrimaryScreenWidth
-    $sh = [System.Windows.SystemParameters]::PrimaryScreenHeight
-    $left = [double]($sw - $w - 90)
-    $top = [double]($sh - $h - 90 - ($script:Pets.Count * 40))
+    # 默认放在屏幕正中央（用 WorkArea：和 Window.Left 同一套 DIP 坐标，避免 DPI 虚拟化错位）
+    $wa = [System.Windows.SystemParameters]::WorkArea
+    $left = [double]($wa.Left + ($wa.Width - $w) / 2)
+    $top = [double]($wa.Top + ($wa.Height - $h) / 2 + ($script:Pets.Count * 26))
   }
   $win.Left = $left
   $win.Top = $top

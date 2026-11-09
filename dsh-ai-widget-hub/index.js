@@ -784,6 +784,25 @@ export default {
           }),
         )
 
+
+        // POST /dsh-ai-hub/recenter —— 防卡死：重置桌面宠物位置并让 DSH 内挂件重新居中
+        register(
+          'exact',
+          '/dsh-ai-hub/recenter',
+          routed((req, res) => {
+            const method = String((req && req.method) || 'GET').toUpperCase()
+            if (method !== 'POST') { sendMethodNotAllowed(res, 'POST'); return }
+            try {
+              // 桌面宠物：停掉助手 → 删除位置记忆 → 重新启动（默认放到屏幕中央）
+              stopDesktopHelper()
+              try { fs.rmSync(DESKTOP_POS_FILE, { force: true }) } catch (err) {}
+              syncDesktopHelper()
+              sendJson(res, 200, { ok: true })
+            } catch (err) {
+              sendJson(res, 500, { ok: false, error: { code: 'recenter-failed', message: String((err && err.message) || err) } })
+            }
+          }),
+        )
         // 图标：每个 id 一条 exact 路由
         const iconCache = new Map()
         function iconBytes(iconFile) {

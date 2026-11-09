@@ -36,6 +36,7 @@ window.__ModuleLoader__.load({
     var API_TOGGLE = '/dsh-ai-hub/toggle';
     var API_BULK = '/dsh-ai-hub/toggle-all';
     var API_DESKTOP = '/dsh-ai-hub/desktop/toggle';
+    var API_RECENTER = '/dsh-ai-hub/recenter';
     var OFF_PREFIX = 'dshaihub-off-';
     var POLL_MS = 12000; // 性能：面板状态轮询降频，减少与挂件同时渲染
 
@@ -908,6 +909,21 @@ window.__ModuleLoader__.load({
         });
       }
 
+      /** 防卡死：把所有开启的 AI娘拉回屏幕正中央（DSH 内实例 + 桌面宠物一起重置）。 */
+      function recenterAll() {
+        try { window.dispatchEvent(new CustomEvent('dsh-ai-hub:recenter')); } catch (err) {}
+        fetch(API_RECENTER, { method: 'POST', credentials: 'same-origin', cache: 'no-store' })
+          .then(function (r) { return r.text() })
+          .then(function () {
+            if (!aliveRef.current) return;
+            setNotice({ kind: 'ok', text: '已把所有开启的 AI娘移到屏幕中央' });
+            load({ silent: true });
+          }).catch(function (err) {
+            if (!aliveRef.current) return;
+            setNotice({ kind: 'error', text: '重新居中失败：' + errorMessage(err) });
+          });
+      }
+
       /** 桌面显示总开关（全部挂件一起）。 */
       function runDesktop(target) {
         if (bulkRef.current) return;
@@ -1134,6 +1150,12 @@ window.__ModuleLoader__.load({
                 title: anyDesktop ? t('desktopHide') : t('desktopShow'),
                 onClick: function () { runDesktop(!anyDesktop); },
               }, anyDesktop ? t('desktopHide') : t('desktopShow')),
+              h('button', {
+                type: 'button',
+                className: 'dshaihub-btn',
+                title: '把所有开启的 AI娘重新显示在屏幕正中央（位置丢失 / 卡住时用）',
+                onClick: function () { recenterAll(); },
+              }, '重新居中（防卡死）'),
               h('button', {
                 type: 'button',
                 className: 'dshaihub-btn',

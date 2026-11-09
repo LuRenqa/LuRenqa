@@ -22810,4 +22810,18 @@ setTimeout(function () {
 }
 // 主界面检测通过（或稍后由 MutationObserver 检测到）后执行挂件初始化；非主界面不启动
 try { dshglTryStart(true) } catch (err) {}
+// v0.2.20：面板「重新居中（防卡死）」→ 把这只挂件拉回屏幕正中央（并关闭吸附，避免立刻又被吸回边缘）
+function glmRecenter() {
+  try {
+    var vp = viewport()
+    var w2 = root.offsetWidth || root.getBoundingClientRect().width || 0
+    var h2 = root.offsetHeight || root.getBoundingClientRect().height || 0
+    try { snapConfig.mode = 'off'; saveSnapConfig() } catch (e1) {}
+    state.left = Math.max(0, Math.round((vp.w - w2) / 2))
+    state.top = Math.max(0, Math.round((vp.h - h2) / 2))
+    express()
+    try { saveConfig() } catch (e2) {}
+  } catch (err) {}
+}
+try { window.addEventListener('dsh-ai-hub:recenter', glmRecenter) } catch (err) {}
 })()
