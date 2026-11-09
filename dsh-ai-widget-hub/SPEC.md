@@ -63,6 +63,8 @@
 17. **v0.2.12 点击冷却动态化**：每只挂件维护 `ClickBusyUntil`；点击时按
     `max(420ms 动画, pressAudio.duration + releaseAudio.duration + 150ms)` 计算占用时长（下限 650ms），
     冷却内该挂件忽略新点击；计时变量在各自 script 内，互不影响。
+18. **v0.2.13**：Client 面板按 `widgets.enabled === true` 统计数量，`enabledCount >= 4` 时在 header 渲染
+    `.dshaihub-memwarn` 警告条（「开启过多AI娘可能引起卡顿，请合理规划内存。」）。
 
 ## 0. 关键结论（已由 Lead 实测/查证，不要再自行推翻）
 

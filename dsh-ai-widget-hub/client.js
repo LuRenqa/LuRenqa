@@ -236,6 +236,8 @@ window.__ModuleLoader__.load({
       '.dshaihub-errorHint{font-size:12px;line-height:18px;color:var(--dshaihub-label3);word-break:break-word}',
       '.dshaihub-notice{padding:9px 12px;border:1px solid var(--dshaihub-border-strong);border-radius:10px;',
       'background:var(--dshaihub-layer1);font-size:12.5px;line-height:18px;color:var(--dshaihub-label2);word-break:break-word}',
+      '.dshaihub-memwarn{display:flex;align-items:flex-start;gap:8px;margin:2px 0 0;padding:9px 12px;border:1px solid var(--dshaihub-warn,#d97706);border-radius:10px;background:rgba(217,119,6,.08);font-size:12.5px;line-height:18px;color:var(--dsw-alias-label-primary,inherit)}',
+      '.dshaihub-memwarnIcon{flex:0 0 auto;font-size:14px;line-height:18px}',
       '.dshaihub-noticeOk{border-color:var(--dshaihub-success)}',
       '.dshaihub-noticeWarn{border-color:var(--dshaihub-warn)}',
       '.dshaihub-noticeError{border-color:var(--dshaihub-error)}',
@@ -929,6 +931,9 @@ window.__ModuleLoader__.load({
         });
       }, [widgets, query]);
 
+      // v0.2.13：已开启数量 ≥4 时在页面顶部提示内存/卡顿风险
+      var enabledCount = 0;
+      for (var ec = 0; ec < widgets.length; ec++) { if (widgets[ec] && widgets[ec].enabled === true) enabledCount += 1; }
       var buttonsDisabled = refreshing || bulk !== '';
       var pageBody;
       if (phase === 'loading' && widgets.length === 0) {
@@ -984,7 +989,11 @@ window.__ModuleLoader__.load({
         h('div', { className: 'dshaihub-pageInner' },
           h('header', { className: 'dshaihub-head' },
             h('h1', { className: 'dshaihub-title' }, t('pageTitle')),
-            h('p', { className: 'dshaihub-subtitle' }, t('pageSubtitle'))
+            h('p', { className: 'dshaihub-subtitle' }, t('pageSubtitle')),
+            enabledCount >= 4 ? h('div', { className: 'dshaihub-memwarn', role: 'status', 'aria-live': 'polite' },
+              h('span', { className: 'dshaihub-memwarnIcon', 'aria-hidden': 'true' }, '⚠'),
+              h('span', null, '开启过多AI娘可能引起卡顿，请合理规划内存。')
+            ) : null
           ),
           h('div', { className: 'dshaihub-toolbar' },
             h('div', { className: 'dshaihub-search' },
