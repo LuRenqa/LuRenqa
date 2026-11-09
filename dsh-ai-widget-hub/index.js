@@ -439,9 +439,9 @@ export default {
     const desktopOffTimer = setInterval(() => {
       try {
         if (!fs.existsSync(DESKTOP_OFF_FILE)) return
-        const text = fs.readFileSync(DESKTOP_OFF_FILE, 'utf8')
+        const text = fs.readFileSync(DESKTOP_OFF_FILE, 'utf8').replace(/^\uFEFF+/, '')
         try { fs.rmSync(DESKTOP_OFF_FILE, { force: true }) } catch (err) {}
-        const ids = String(text).split(/s+/).filter(Boolean)
+        const ids = String(text).split(/\s+/).map((x) => x.trim()).filter(Boolean)
         let changed = false
         for (const id of ids) {
           if (state.desktop[id] === true) { state.desktop[id] = false; changed = true }

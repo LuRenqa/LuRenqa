@@ -65,6 +65,7 @@
     冷却内该挂件忽略新点击；计时变量在各自 script 内，互不影响。
 18. **v0.2.13**：Client 面板按 `widgets.enabled === true` 统计数量，`enabledCount >= 4` 时在 header 渲染
     `.dshaihub-memwarn` 警告条（「开启过多AI娘可能引起卡顿，请合理规划内存。」）。
+28. **v0.2.23**：Host off 文件读取去 BOM + id trim；助手 `.off` 写 ASCII；Client POLL_MS 12000→4000。
 27. **v0.2.22**：助手 `Disable-Desktop` 改为写 `<pos>.off` + 立即关窗；Host `desktopOffTimer` 1.2s 轮询同步状态；
     desktop/toggle 的关闭分支先 sendJson 再 setImmediate(syncDesktopHelper)。
 26. **v0.2.21**：桌面助手单实例（`Global\DshAiHubDesktopPetHelper` Mutex + `<pos>.pid`，冲突时杀掉旧 pid）；

@@ -38,7 +38,7 @@ window.__ModuleLoader__.load({
     var API_DESKTOP = '/dsh-ai-hub/desktop/toggle';
     var API_RECENTER = '/dsh-ai-hub/recenter';
     var OFF_PREFIX = 'dshaihub-off-';
-    var POLL_MS = 12000; // 性能：面板状态轮询降频，减少与挂件同时渲染
+    var POLL_MS = 4000; // 状态轮询（桌面开关由助手信号驱动，4s 内同步 UI）
 
     /* ── 兜底目录 ──────────────────────────────────────────────────────────
        第一次 state 请求返回之前（或请求失败时），全局隐藏样式需要一份 rootClass

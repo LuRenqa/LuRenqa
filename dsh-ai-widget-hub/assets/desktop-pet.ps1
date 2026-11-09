@@ -164,7 +164,7 @@ function Disable-Desktop($st) {
   # 不在这里同步发 HTTP（会在 UI 线程上等好几秒 → 看起来像卡死）。
   # 只写一个 off 信号文件并立即关窗口，由 Host 轮询处理状态。
   try {
-    Add-Content -LiteralPath ($PosFile + '.off') -Value ([string]$st.Cfg.id) -Encoding UTF8
+    Add-Content -LiteralPath ($PosFile + '.off') -Value ([string]$st.Cfg.id) -Encoding ASCII
   } catch {}
   try { $st.Win.Close() } catch {}
 }
