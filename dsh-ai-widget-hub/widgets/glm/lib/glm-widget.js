@@ -22027,7 +22027,17 @@ function isglmHit(e) {
 function onDocPointerDown(e) {
   try {
     var __t = e && e.target
-    if (__t && __t.closest && __t.closest('[data-dsh-widget-root]') && !root.contains(__t)) return
+    var __fr = __t && __t.closest && __t.closest('[data-dsh-widget-root]')
+    if (__fr && !root.contains(__t)) {
+      // 对方的角色图（透明边距会盖住别的挂件）→ 允许继续按坐标做命中判定；
+      // 对方的菜单 / 气泡 / 面板等 UI → 直接忽略，避免抢走别人的点击。
+      var __isCharImg = false
+      try {
+        var __cl = __t.classList
+        if (__cl) for (var __ci = 0; __ci < __cl.length; __ci++) if (/-img$/.test(__cl[__ci])) { __isCharImg = true; break }
+      } catch (e2) {}
+      if (!__isCharImg) return
+    }
   } catch (err) {}
 
   if (e.target && e.target.closest) {
@@ -22096,7 +22106,17 @@ function glmClickRefresh() {
 function onDocPointerUp(e) {
   try {
     var __t = e && e.target
-    if (!(drag && drag.active) && __t && __t.closest && __t.closest('[data-dsh-widget-root]') && !root.contains(__t)) return
+    var __fr = __t && __t.closest && __t.closest('[data-dsh-widget-root]')
+    if (!(drag && drag.active) && __fr && !root.contains(__t)) {
+      // 对方的角色图（透明边距会盖住别的挂件）→ 允许继续按坐标做命中判定；
+      // 对方的菜单 / 气泡 / 面板等 UI → 直接忽略，避免抢走别人的点击。
+      var __isCharImg = false
+      try {
+        var __cl = __t.classList
+        if (__cl) for (var __ci = 0; __ci < __cl.length; __ci++) if (/-img$/.test(__cl[__ci])) { __isCharImg = true; break }
+      } catch (e2) {}
+      if (!__isCharImg) return
+    }
   } catch (err) {}
 
   // 拦截GLM娘区域内的 pointerup：防止下方元素（如文件行）监听 pointerup 穿透误触发
@@ -22107,7 +22127,17 @@ function onDocPointerCancel(e) { endDrag(e, false, true) }
 function onDocClickStopper(e) {
   try {
     var __t = e && e.target
-    if (__t && __t.closest && __t.closest('[data-dsh-widget-root]') && !root.contains(__t)) return
+    var __fr = __t && __t.closest && __t.closest('[data-dsh-widget-root]')
+    if (__fr && !root.contains(__t)) {
+      // 对方的角色图（透明边距会盖住别的挂件）→ 允许继续按坐标做命中判定；
+      // 对方的菜单 / 气泡 / 面板等 UI → 直接忽略，避免抢走别人的点击。
+      var __isCharImg = false
+      try {
+        var __cl = __t.classList
+        if (__cl) for (var __ci = 0; __ci < __cl.length; __ci++) if (/-img$/.test(__cl[__ci])) { __isCharImg = true; break }
+      } catch (e2) {}
+      if (!__isCharImg) return
+    }
   } catch (err) {}
 
   // 只在GLM娘命中区域拦截 click（保持透明区 pass-through）。
