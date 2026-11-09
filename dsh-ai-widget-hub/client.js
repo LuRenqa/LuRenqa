@@ -466,6 +466,7 @@ window.__ModuleLoader__.load({
           installed: raw.installed !== false,
           // 未安装的挂件一律按「关闭」展示，避免出现禁用却显示「已开启」的怪状态
           enabled: raw.installed !== false && raw.enabled === true,
+          desktop: raw.desktop === true,
           version: textOf(raw.version),
           entryId: textOf(raw.entryId),
           fiberPhase: textOf(raw.fiberPhase),
