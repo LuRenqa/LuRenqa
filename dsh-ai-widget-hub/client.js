@@ -35,6 +35,7 @@ window.__ModuleLoader__.load({
     var API_STATE = '/dsh-ai-hub/state';
     var API_TOGGLE = '/dsh-ai-hub/toggle';
     var API_BULK = '/dsh-ai-hub/toggle-all';
+    var API_DESKTOP = '/dsh-ai-hub/desktop/toggle';
     var OFF_PREFIX = 'dshaihub-off-';
     var POLL_MS = 12000; // 性能：面板状态轮询降频，减少与挂件同时渲染
 
@@ -61,6 +62,9 @@ window.__ModuleLoader__.load({
         pageSubtitle: '已内置全部 9 只挂件，选择要在右下角显示的余额桌宠；开关即时生效，下次启动沿用',
         searchPlaceholder: '搜索挂件名称或风格…',
         searchLabel: '搜索挂件',
+        desktopShow: '显示到桌面',
+        desktopHide: '关闭桌面显示',
+        desktopDone: '桌面显示已更新。',
         enableAll: '全部开启',
         disableAll: '全部关闭',
         refresh: '刷新',
@@ -93,6 +97,9 @@ window.__ModuleLoader__.load({
         pageSubtitle: 'All 9 widgets are bundled in this plugin. Choose which balance pet appears in the bottom-right corner; toggles apply instantly and persist across launches.',
         searchPlaceholder: 'Search widgets by name or style…',
         searchLabel: 'Search widgets',
+        desktopShow: 'Show on desktop',
+        desktopHide: 'Hide desktop pets',
+        desktopDone: 'Desktop pets updated.',
         enableAll: 'Enable all',
         disableAll: 'Disable all',
         refresh: 'Refresh',
@@ -384,6 +391,25 @@ window.__ModuleLoader__.load({
           if (!data || data.ok !== true) {
             throw new Error((data && data.error && data.error.message) || 'bulk toggle rejected');
           }
+          return data;
+        });
+      });
+    }
+
+    /** 桌面显示总开关：一次请求设置全部挂件。 */
+    function requestDesktop(enabled) {
+      return fetch(API_DESKTOP, {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ all: true, enabled: enabled === true }),
+      }).then(function (res) {
+        return res.text().then(function (text) {
+          var data = null;
+          try { data = text ? JSON.parse(text) : null; } catch (err) { data = null; }
+          if (!res.ok) throw new Error((data && data.error && data.error.message) || ('HTTP ' + res.status));
+          if (!data || data.ok !== true) throw new Error((data && data.error && data.error.message) || 'desktop toggle rejected');
           return data;
         });
       });
@@ -830,6 +856,25 @@ window.__ModuleLoader__.load({
         });
       }
 
+      /** 桌面显示总开关（全部挂件一起）。 */
+      function runDesktop(target) {
+        if (bulkRef.current) return;
+        bulkRef.current = true;
+        setBulk(target ? 'on' : 'off');
+        requestDesktop(target).then(function (result) {
+          if (!aliveRef.current) return;
+          setNotice({ kind: 'ok', text: t('desktopDone') });
+          load({ silent: true });
+          return result;
+        }).catch(function (err) {
+          if (!aliveRef.current) return;
+          setNotice({ kind: 'error', text: t('noticeFailed', { message: errorMessage(err) }) });
+        }).then(function () {
+          bulkRef.current = false;
+          if (aliveRef.current) setBulk('');
+        });
+      }
+
       /**
        * 全部开启 / 全部关闭：一次批量请求，Host 内部并行挂载/卸载。
        * UI 先乐观更新（CSS 立即隐藏/显示），成功后再按 Host 返回的权威状态校正，并错峰补挂件脚本。
@@ -935,6 +980,8 @@ window.__ModuleLoader__.load({
       var enabledCount = 0;
       for (var ec = 0; ec < widgets.length; ec++) { if (widgets[ec] && widgets[ec].enabled === true) enabledCount += 1; }
       var buttonsDisabled = refreshing || bulk !== '';
+      var anyDesktop = false;
+      for (var dd = 0; dd < widgets.length; dd++) { if (widgets[dd] && widgets[dd].desktop === true) anyDesktop = true; }
       var pageBody;
       if (phase === 'loading' && widgets.length === 0) {
         pageBody = h('div', { className: 'dshaihub-grid', 'aria-busy': 'true', 'aria-label': t('loading') },
@@ -1024,6 +1071,13 @@ window.__ModuleLoader__.load({
                 'aria-busy': bulk === 'off' ? 'true' : 'false',
                 onClick: function () { runBulk(false); },
               }, bulk === 'off' ? t('working') : t('disableAll')),
+              h('button', {
+                type: 'button',
+                className: 'dshaihub-btn',
+                disabled: buttonsDisabled,
+                title: anyDesktop ? t('desktopHide') : t('desktopShow'),
+                onClick: function () { runDesktop(!anyDesktop); },
+              }, anyDesktop ? t('desktopHide') : t('desktopShow')),
               h('button', {
                 type: 'button',
                 className: 'dshaihub-btn',

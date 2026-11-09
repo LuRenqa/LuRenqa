@@ -2124,6 +2124,57 @@ bubbleSizeNumber.addEventListener('input', function () { applyBubbleSize(bubbleS
 bubbleSizeNumber.addEventListener('change', function () { applyBubbleSize(bubbleSizeNumber.value) })
 applyBubbleSize(bubbleSizeLevel)
 // —— 角色形态切换按钮（专属色块）——
+// —— 桌面显示开关（每只挂件独立；开着时按钮用专属色块）——
+var desktopOn = false
+var desktopBtn = null
+function desktopBtnRender() {
+  try {
+    if (!desktopBtn) return
+    desktopBtn.textContent = desktopOn ? '显示在桌面：开' : '显示在桌面：关'
+    desktopBtn.style.background = desktopOn ? '#4d6bfe' : 'transparent'
+    desktopBtn.style.color = desktopOn ? '#ffffff' : 'inherit'
+    desktopBtn.style.border = desktopOn ? '1px solid #4d6bfe' : '1px solid currentColor'
+  } catch (err) {}
+}
+function desktopRefresh() {
+  try {
+    fetch('/dsh-ai-hub/state', { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (r) { return r.json() })
+      .then(function (d) {
+        var list = (d && d.widgets) || []
+        for (var i = 0; i < list.length; i++) {
+          if (list[i] && list[i].id === 'whale') { desktopOn = list[i].desktop === true; break }
+        }
+        desktopBtnRender()
+      }).catch(function () {})
+  } catch (err) {}
+}
+function desktopToggle() {
+  var target = !desktopOn
+  try {
+    fetch('/dsh-ai-hub/desktop/toggle', {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'whale', enabled: target }),
+    }).then(function (r) { return r.json() }).then(function (d) {
+      if (d && d.ok) { desktopOn = target; desktopBtnRender() }
+    }).catch(function () {})
+  } catch (err) {}
+}
+var rowDesktop = menuRow()
+rowDesktop.appendChild(menuLabel('桌面显示'))
+desktopBtn = document.createElement('button')
+desktopBtn.type = 'button'
+desktopBtn.className = 'dshwv-roleimport'
+desktopBtn.style.flex = '1'
+desktopBtn.style.fontWeight = '600'
+desktopBtn.textContent = '显示在桌面：关'
+desktopBtn.title = '在电脑桌面上显示 / 隐藏这只 AI娘'
+desktopBtn.addEventListener('click', function (e) { e.stopPropagation(); desktopToggle() })
+rowDesktop.appendChild(desktopBtn)
+desktopRefresh()
 var rowForm = menuRow()
 rowForm.appendChild(menuLabel('角色形态'))
 var formToggleBtn = document.createElement('button')
@@ -2213,6 +2264,7 @@ roleFileInput.addEventListener('change', function () { onRoleFileChosen(roleFile
 menuBox.appendChild(rowRole)
 menuBox.appendChild(row1)
 menuBox.appendChild(rowForm)
+menuBox.appendChild(rowDesktop)
 menuBox.appendChild(rowBubbleSize)
 menuBox.appendChild(row2)
 menuBox.appendChild(row6)

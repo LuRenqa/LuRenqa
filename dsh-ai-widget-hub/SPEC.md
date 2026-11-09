@@ -65,6 +65,11 @@
     冷却内该挂件忽略新点击；计时变量在各自 script 内，互不影响。
 18. **v0.2.13**：Client 面板按 `widgets.enabled === true` 统计数量，`enabledCount >= 4` 时在 header 渲染
     `.dshaihub-memwarn` 警告条（「开启过多AI娘可能引起卡顿，请合理规划内存。」）。
+19. **v0.2.14 桌面显示**：`assets/desktop-pet.ps1`（单文件 WPF 助手）+ Host 桌面管理：
+    ① state 增加 `desktop` map 并在 buildState 输出 `desktop`；`POST /dsh-ai-hub/desktop/toggle`（id/all）；
+    ② `syncDesktopHelper()` 写 `$DSH_HOME/dsh-ai-widget-hub.desktop.json`（pets + authUrl）并用 child_process 启动 powershell 助手；
+    ③ 助手：透明置顶窗口、拖动记忆位置、单击余额气泡（用 authUrl 登录拿 cookie 后请求 `/dsh-<id>/balance.json`）、按压音效、右键菜单；
+    ④ Client 工具栏「显示到桌面/关闭桌面显示」总开关；每只挂件菜单「桌面显示」开关（POST 同一接口）。
 
 ## 0. 关键结论（已由 Lead 实测/查证，不要再自行推翻）
 
