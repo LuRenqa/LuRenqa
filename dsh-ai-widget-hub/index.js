@@ -21,6 +21,7 @@
  */
 
 import fs from 'node:fs'
+import { spawn } from 'node:child_process'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -45,6 +46,22 @@ const ICON_DIR = path.join(PKG_ROOT, 'assets', 'icons')
 const DSH_HOME = process.env.DSH_HOME || path.join(os.homedir(), '.dsh')
 const STATE_FILE = path.join(DSH_HOME, 'dsh-ai-widget-hub.json')
 const RUNTIME_DIAG_FILE = path.join(DSH_HOME, 'dsh-ai-widget-hub.runtime.json')
+const DESKTOP_CONFIG_FILE = path.join(DSH_HOME, 'dsh-ai-widget-hub.desktop.json')
+const DESKTOP_POS_FILE = path.join(DSH_HOME, 'dsh-ai-widget-hub.desktop.pos.json')
+const DESKTOP_HELPER = path.join(PKG_ROOT, 'assets', 'desktop-pet.ps1')
+const DESKTOP_PS = 'powershell.exe'
+/** 每只挂件在桌面上使用的两张角色图（相对 widgets/<id>/assets/）。 */
+const DESKTOP_ASSETS = {
+  neko: ['neko1.png', 'neko2.png'],
+  kimi: ['kimi1.png', 'kimi2.png'],
+  glm: ['glm1.png', 'glm2.png'],
+  qwen: ['qwen1.png', 'qwen2.png'],
+  grok: ['grok1.png', 'grok2.png'],
+  xiaoke: ['xiaoke1.png', 'xiaoke2.png'],
+  whale: ['DSniang1.png', 'whale2.png'],
+  gptniang: ['gptniang1.png', 'gptniang2.png'],
+  mimo: ['mimo1.png', 'mimo2.png'],
+}
 
 const STATE_PATH = '/dsh-ai-hub/state'
 const TOGGLE_PATH = '/dsh-ai-hub/toggle'
@@ -242,8 +259,9 @@ function rejectionFor(ctx, req) {
 /** 默认：8 只全部开启（与 v0.1 管理 8 个独立插件时的默认观感一致）。 */
 function defaultState() {
   const enabled = {}
-  for (const widget of CATALOG) enabled[widget.id] = true
-  return { version: 1, enabled }
+  const desktop = {}
+  for (const widget of CATALOG) { enabled[widget.id] = true; desktop[widget.id] = false }
+  return { version: 1, enabled, desktop }
 }
 
 function sanitizeState(raw) {
@@ -253,6 +271,12 @@ function sanitizeState(raw) {
   if (enabled !== null && typeof enabled === 'object' && !Array.isArray(enabled)) {
     for (const widget of CATALOG) {
       if (typeof enabled[widget.id] === 'boolean') out.enabled[widget.id] = enabled[widget.id]
+    }
+  }
+  const desktop = raw.desktop
+  if (desktop !== null && typeof desktop === 'object' && !Array.isArray(desktop)) {
+    for (const widget of CATALOG) {
+      if (typeof desktop[widget.id] === 'boolean') out.desktop[widget.id] = desktop[widget.id]
     }
   }
   return out
@@ -323,6 +347,80 @@ export default {
     const mounted = new Map()
     const state = loadState()
     const versions = readVersions()
+
+    // —— 桌面宠物：启动/停止随插件分发的 PowerShell 助手（透明置顶窗口）——
+    let desktopChild = null
+    function desktopPets() {
+      const pets = []
+      for (const widget of CATALOG) {
+        if (state.desktop[widget.id] !== true) continue
+        if (!mounted.has(widget.id)) continue
+        const pair = DESKTOP_ASSETS[widget.id]
+        if (!pair) continue
+        const assetsDir = path.join(WIDGETS_DIR, widget.id, 'assets')
+        pets.push({
+          id: widget.id,
+          name: widget.title,
+          img1: path.join(assetsDir, pair[0]),
+          img2: path.join(assetsDir, pair[1]),
+          accent: widget.accent,
+          size: 340,
+          balanceUrl: DESKTOP_ROUTE_BASE() + '/dsh-' + widget.id + '/balance.json',
+          sound1: path.join(assetsDir, 'Ya1.mp3'),
+        })
+      }
+      return pets
+    }
+    function DESKTOP_ROUTE_BASE() {
+      try {
+        const webServer = ctx.get('webServer')
+        const origin = webServer && typeof webServer.getOrigin === 'function' ? String(webServer.getOrigin()) : ''
+        return origin.replace(/\/+$/, '')
+      } catch (err) { return 'http://127.0.0.1' }
+    }
+    function desktopAuthUrl() {
+      try {
+        const base = DESKTOP_ROUTE_BASE() + '/'
+        const connection = ctx.get('connection')
+        if (connection && typeof connection.authenticatedUrl === 'function') {
+          return String(connection.authenticatedUrl(base))
+        }
+        return base
+      } catch (err) { return DESKTOP_ROUTE_BASE() + '/' }
+    }
+    function writeDesktopConfig() {
+      const pets = desktopPets()
+      const doc = { version: 1, updatedAt: Date.now(), authUrl: desktopAuthUrl(), pets }
+      fs.mkdirSync(path.dirname(DESKTOP_CONFIG_FILE), { recursive: true })
+      const tmp = DESKTOP_CONFIG_FILE + '.tmp-' + process.pid + '-' + Date.now()
+      fs.writeFileSync(tmp, JSON.stringify(doc, null, 2) + '\n', 'utf8')
+      fs.renameSync(tmp, DESKTOP_CONFIG_FILE)
+      return pets.length
+    }
+    function stopDesktopHelper() {
+      if (desktopChild === null) return
+      try { desktopChild.kill() } catch (err) {}
+      desktopChild = null
+    }
+    function syncDesktopHelper() {
+      try {
+        const pets = desktopPets().length
+        if (pets === 0) { stopDesktopHelper(); return }
+        writeDesktopConfig()
+        if (desktopChild !== null && desktopChild.exitCode === null) return
+        const args = [
+          '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden',
+          '-File', DESKTOP_HELPER,
+          '-ConfigFile', DESKTOP_CONFIG_FILE,
+          '-PosFile', DESKTOP_POS_FILE,
+        ]
+        desktopChild = spawn(DESKTOP_PS, args, { stdio: 'ignore', windowsHide: true })
+        desktopChild.on('exit', () => { desktopChild = null })
+        desktopChild.on('error', () => { desktopChild = null })
+      } catch (err) {
+        try { ctx.logger?.warn?.('[ai-widget-hub] 启动桌面助手失败：' + String((err && err.message) || err)) } catch (err2) {}
+      }
+    }
 
     /** 挂载一只内嵌挂件，返回 { ok, fiber?, error? }。 */
     function mountWidget(id) {
@@ -425,6 +523,7 @@ export default {
               iconUrl: ICON_PREFIX + '/' + widget.id + '.png',
               installed: true,
               enabled: mounted.has(widget.id),
+              desktop: state.desktop[widget.id] === true,
               fiberPhase: mounted.has(widget.id) ? 'active' : null,
               entryId: null,
               version: versions[widget.id] || '0.0.0',
@@ -525,7 +624,9 @@ export default {
               }
 
               state.enabled[widget.id] = target
+              if (!target) state.desktop[widget.id] = false
               saveState(state)
+              try { syncDesktopHelper() } catch (err) {}
               writeRuntimeDiag(mounted, {})
 
               sendJson(res, 200, {
@@ -609,7 +710,9 @@ export default {
                 if (failures[widget.id] !== undefined) continue
                 state.enabled[widget.id] = target
               }
+              if (!target) { for (const widget of CATALOG) state.desktop[widget.id] = false }
               saveState(state)
+              try { syncDesktopHelper() } catch (err) {}
               writeRuntimeDiag(mounted, failures)
               sendJson(res, 200, {
                 ok: true,
@@ -628,6 +731,52 @@ export default {
                 widgets: CATALOG.map((widget) => ({ id: widget.id, enabled: mounted.has(widget.id) })),
                 error: { code: 'toggle-all-failed', message: String((err && err.message) || err) },
               })
+            }
+          }),
+        )
+
+        // POST /dsh-ai-hub/desktop/toggle —— 单只 / 全部 桌面显示开关
+        register(
+          'exact',
+          '/dsh-ai-hub/desktop/toggle',
+          routed(async (req, res) => {
+            const method = String((req && req.method) || 'GET').toUpperCase()
+            if (method !== 'POST') { sendMethodNotAllowed(res, 'POST'); return }
+            let payload
+            try { payload = await readJsonBody(req, MAX_BODY_BYTES) } catch (err) {
+              const code = (err && err.code) || 'bad-request'
+              sendJson(res, code === 'body-too-large' ? 413 : 400, { ok: false, error: { code, message: String((err && err.message) || err) } })
+              return
+            }
+            if (payload === null || typeof payload !== 'object' || typeof payload.enabled !== 'boolean') {
+              sendJson(res, 400, { ok: false, error: { code: 'bad-json', message: 'body must be { enabled: boolean, id?: string, all?: boolean }' } })
+              return
+            }
+            const target = payload.enabled
+            try {
+              if (payload.all === true) {
+                for (const widget of CATALOG) state.desktop[widget.id] = target
+              } else {
+                const widget = findWidget(payload.id)
+                if (widget === undefined) {
+                  sendJson(res, 400, { ok: false, error: { code: 'unknown-id', message: 'unknown widget id' } })
+                  return
+                }
+                if (target && !mounted.has(widget.id)) {
+                  sendJson(res, 400, { ok: false, id: widget.id, error: { code: 'widget-disabled', message: '请先开启该 AI娘' } })
+                  return
+                }
+                state.desktop[widget.id] = target
+              }
+              saveState(state)
+              syncDesktopHelper()
+              sendJson(res, 200, {
+                ok: true,
+                enabled: target,
+                widgets: CATALOG.map((widget) => ({ id: widget.id, desktop: state.desktop[widget.id] === true })),
+              })
+            } catch (err) {
+              sendJson(res, 500, { ok: false, error: { code: 'desktop-toggle-failed', message: String((err && err.message) || err) } })
             }
           }),
         )
@@ -683,6 +832,9 @@ export default {
           sendText(res, 404, 'icon not found')
         }))
 
+        // 启动时恢复桌面显示（在 webServer 注入完成后，保证 origin 正确）
+        try { syncDesktopHelper() } catch (err) {}
+
         svc.effect(() => () => {
           for (const dispose of disposers) {
             try {
@@ -702,6 +854,9 @@ export default {
       }
     }
 
+    // 启动时按保存的桌面开关恢复 helper（若已有开启项）
+    try { syncDesktopHelper() } catch (err) {}
+
     // ③ 插件卸载时把内嵌挂件全部卸载
     try {
       ctx.effect(() => () => {
@@ -714,6 +869,7 @@ export default {
           }
         }
         mounted.clear()
+        try { stopDesktopHelper() } catch (err3) {}
       })
     } catch (err) {
       /* ignore */

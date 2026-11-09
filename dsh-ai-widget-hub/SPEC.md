@@ -65,6 +65,7 @@
     冷却内该挂件忽略新点击；计时变量在各自 script 内，互不影响。
 18. **v0.2.13**：Client 面板按 `widgets.enabled === true` 统计数量，`enabledCount >= 4` 时在 header 渲染
     `.dshaihub-memwarn` 警告条（「开启过多AI娘可能引起卡顿，请合理规划内存。」）。
+21. **v0.2.16**：Host 补注册 `POST /dsh-ai-hub/desktop/toggle`（v0.2.14 遗漏），并在 `ctx.inject(['webServer'])` 内恢复桌面助手；修复 405。
 20. **v0.2.15**：normalizeWidgets 增加 `desktop: raw.desktop === true`，保证面板总开关状态准确。
 19. **v0.2.14 桌面显示**：`assets/desktop-pet.ps1`（单文件 WPF 助手）+ Host 桌面管理：
     ① state 增加 `desktop` map 并在 buildState 输出 `desktop`；`POST /dsh-ai-hub/desktop/toggle`（id/all）；
