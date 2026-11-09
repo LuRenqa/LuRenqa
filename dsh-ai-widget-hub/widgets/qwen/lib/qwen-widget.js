@@ -595,7 +595,7 @@ var css = [
   '.dshqwv-root.dshqwv-cursor-grabbing .dshqwv-img{pointer-events:auto;cursor:grabbing}',
   // 拖动期间握点相对挂件固定，让整个盒接过指针以保持 grabbing（类由按下时加、endDrag 摘）
   '.dshqwv-root.dshqwv-dragging .dshqwv-body{pointer-events:auto;cursor:grabbing}',
-  '.dshqwv-pop{position:absolute;left:0;top:0;width:100%;aspect-ratio:1026/700;pointer-events:none;z-index:1;--dshqw-u:calc(var(--dshqw-base) / 1026)}',
+  '.dshqwv-pop{position:absolute;left:0;top:0;width:100%;aspect-ratio:1026/700;pointer-events:none;z-index:1;transform:scale(var(--dshqwv-bubble-scale,1));transform-origin:100% 100%;--dshqw-u:calc(var(--dshqw-base) / 1026)}',
   // v822：形状专属容器（只在它里面重画 ⇒ 内容与动图不受影响）；铺满泡泡并排在最底层
   '.dshqwv-shapewrap{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}',
   // 纵深防御：泡泡容器必须透明，形状由内部 SVG 绘制；用 !important 压掉外部
@@ -2079,7 +2079,7 @@ scrollGapInput.title = '避让滚动条的像素宽度，填 0 表示贴边'
 scrollGapInput.addEventListener('input', function () { setScrollGapPx(scrollGapInput.value) })
 scrollGapInput.addEventListener('change', function () { setScrollGapPx(scrollGapInput.value) })
 var row1 = menuRow()
-row1.appendChild(menuLabel('大小'))
+row1.appendChild(menuLabel('角色大小'))
 row1.appendChild(scaleInput)
 row1.appendChild(scaleNumber)
 // —— 音量滑块与百分比（v761 起搬进「提示与音效设置」面板，主菜单不再占行）——
@@ -2106,6 +2106,50 @@ soundToggle.addEventListener('change', function () { setSoundOn(soundToggle.chec
 // 原「音效」行里的音效组/导入、原「音量」行的滑块，以及每轮消耗/提问/授权的音效，全部收进面板。
 // ⚠️ soundToggle 这个元素**仍然创建**（setSoundOn() 与配置回填都会 `soundToggle.checked = ...`），
 //    只是不再挂到本行上。删掉它的创建会让那两处抛 ReferenceError（本项目栽过整个挂件不出现）。
+// —— 气泡大小（独立于角色大小；默认 10 档 = 现有大小）——
+var bubbleSizeKey = 'dshqwv-bubble-size'
+var bubbleSizeLevel = 10
+try {
+  var bubbleSizeSaved = parseInt(localStorage.getItem(bubbleSizeKey), 10)
+  if (bubbleSizeSaved >= 1 && bubbleSizeSaved <= 20) bubbleSizeLevel = bubbleSizeSaved
+} catch (err) {}
+var bubbleSizeInput = document.createElement('input')
+bubbleSizeInput.type = 'range'
+bubbleSizeInput.min = String(MIN_SCALE)
+bubbleSizeInput.max = String(MAX_SCALE)
+bubbleSizeInput.step = '0.1'
+bubbleSizeInput.className = 'dshqwv-range'
+var bubbleSizeNumber = document.createElement('input')
+bubbleSizeNumber.type = 'number'
+bubbleSizeNumber.min = '1'
+bubbleSizeNumber.max = '20'
+bubbleSizeNumber.step = '1'
+bubbleSizeNumber.className = 'dshqwv-number'
+function bubbleSizeScaleOf(level) {
+  return MIN_SCALE + Math.max(0, Math.min(20, level) - 1) * (MAX_SCALE - MIN_SCALE) / 19
+}
+function bubbleSizeLevelOf(scale) {
+  return Math.round((Number(scale) - MIN_SCALE) / ((MAX_SCALE - MIN_SCALE) / 19)) + 1
+}
+function applyBubbleSize(level) {
+  var lv = Math.max(1, Math.min(20, Math.round(Number(level) || 10)))
+  bubbleSizeLevel = lv
+  var s = bubbleSizeScaleOf(lv)
+  // 默认 10 档对应 1.5（与角色默认大小同刻度）⇒ 缩放因子 1.0，不改现有观感
+  var factor = s / 1.5
+  try { root.style.setProperty('--dshqwv-bubble-scale', String(factor)) } catch (err) {}
+  bubbleSizeInput.value = String(s)
+  bubbleSizeNumber.value = String(lv)
+  try { localStorage.setItem(bubbleSizeKey, String(lv)) } catch (err) {}
+}
+bubbleSizeInput.addEventListener('input', function () { applyBubbleSize(bubbleSizeLevelOf(bubbleSizeInput.value)) })
+bubbleSizeNumber.addEventListener('input', function () { applyBubbleSize(bubbleSizeNumber.value) })
+bubbleSizeNumber.addEventListener('change', function () { applyBubbleSize(bubbleSizeNumber.value) })
+applyBubbleSize(bubbleSizeLevel)
+var rowBubbleSize = menuRow()
+rowBubbleSize.appendChild(menuLabel('气泡大小'))
+rowBubbleSize.appendChild(bubbleSizeInput)
+rowBubbleSize.appendChild(bubbleSizeNumber)
 var row2 = menuRow()
 row2.appendChild(menuLabel('音效与提示'))
 var soundPanelBtn = document.createElement('button')
@@ -2177,6 +2221,7 @@ roleImportBtn.addEventListener('click', function (e) { e.stopPropagation(); role
 roleFileInput.addEventListener('change', function () { onRoleFileChosen(roleFileInput) })
 menuBox.appendChild(rowRole)
 menuBox.appendChild(row1)
+menuBox.appendChild(rowBubbleSize)
 menuBox.appendChild(row2)
 menuBox.appendChild(row6)
 // v762：「每轮消耗提示」整行**不再挂到主菜单**（菜单里已再无此行，配置入口移进「全局设置」面板）。
@@ -18761,7 +18806,15 @@ function qwenToggleForm() {
     if (!currentRole || currentRole.id !== 'default') return
     qwenFormAlt = !qwenFormAlt
     var url = qwenFormAlt ? IMG2_URL : IMG_URL
+    // 先移除形态1的命中轮廓：否则形态2 会被旧 clip-path 裁掉（头顶/帽子等超出部分被切）
+    try { applyHitClip('') } catch (err) {}
     img.src = url
+    // 延后到下一帧之后重建形态2 的命中轮廓（不阻塞切换动画；连续切换时用 src 校验防串台）
+    setTimeout(function () {
+      try {
+        if (currentRole && currentRole.id === 'default' && img.getAttribute('src') === url) setupHitTest(url)
+      } catch (err) {}
+    }, 120)
     // 性能：两态剪影接近，沿用形态1的命中图，切形态时不再重算 610×610 命中画布（省掉解码/凸包/回流）
     applyArtScale()
   } catch (err) {}

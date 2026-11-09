@@ -46,6 +46,9 @@
 12. **v0.2.7 性能·第二轮**：① 形态切换去掉 `setupHitTest`（沿用形态1命中图）；② 消耗泡泡 `scheduleCostBubble` 错峰 0.1~2.6s；
     ③ 新增 `POST /dsh-ai-hub/toggle-all`（Host 并行 mount/unmount，一次 `saveState`）；
     ④ Client「全部开启/全部关闭」改为一次批量请求 + 权威状态校正 + 140ms 错峰补脚本。
+13. **v0.2.8**：① 形态切换先调用 `applyHitClip("")` 再 120ms 后 `setupHitTest(url)`，避免旧 clip 裁掉形态2；
+    ② 每只挂件菜单新增「气泡大小」行（默认 10 档 = 因子 1.0），`root` 上设置 `--<前缀>-bubble-scale`，
+    `.pop` CSS `transform:scale(var(...));transform-origin:100% 100%`；localStorage key `<前缀>-bubble-size` 持久化。
 
 ## 0. 关键结论（已由 Lead 实测/查证，不要再自行推翻）
 
