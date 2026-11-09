@@ -66,6 +66,7 @@ const DESKTOP_ASSETS = {
 const STATE_PATH = '/dsh-ai-hub/state'
 const TOGGLE_PATH = '/dsh-ai-hub/toggle'
 const TOGGLE_ALL_PATH = '/dsh-ai-hub/toggle-all'
+const DESKTOP_PAGE_PATH = '/dsh-ai-hub/desktop'
 const ICON_PREFIX = '/dsh-ai-hub/icon'
 
 const MAX_BODY_BYTES = 16 * 1024
@@ -349,25 +350,14 @@ export default {
     const versions = readVersions()
 
     // —— 桌面宠物：启动/停止随插件分发的 PowerShell 助手（透明置顶窗口）——
+    // —— 桌面舞台：单独的无边框浏览器窗口，加载「真实挂件页面」（气泡/菜单与 DSH 内完全一致）——
     let desktopChild = null
     function desktopPets() {
       const pets = []
       for (const widget of CATALOG) {
         if (state.desktop[widget.id] !== true) continue
         if (!mounted.has(widget.id)) continue
-        const pair = DESKTOP_ASSETS[widget.id]
-        if (!pair) continue
-        const assetsDir = path.join(WIDGETS_DIR, widget.id, 'assets')
-        pets.push({
-          id: widget.id,
-          name: widget.title,
-          img1: path.join(assetsDir, pair[0]),
-          img2: path.join(assetsDir, pair[1]),
-          accent: widget.accent,
-          size: 340,
-          balanceUrl: DESKTOP_ROUTE_BASE() + '/dsh-' + widget.id + '/balance.json',
-          sound1: path.join(assetsDir, 'Ya1.mp3'),
-        })
+        pets.push({ id: widget.id, title: widget.title })
       }
       return pets
     }
@@ -388,38 +378,118 @@ export default {
         return base
       } catch (err) { return DESKTOP_ROUTE_BASE() + '/' }
     }
-    function writeDesktopConfig() {
-      const pets = desktopPets()
-      const doc = { version: 1, updatedAt: Date.now(), authUrl: desktopAuthUrl(), pets }
-      fs.mkdirSync(path.dirname(DESKTOP_CONFIG_FILE), { recursive: true })
-      const tmp = DESKTOP_CONFIG_FILE + '.tmp-' + process.pid + '-' + Date.now()
-      fs.writeFileSync(tmp, JSON.stringify(doc, null, 2) + '\n', 'utf8')
-      fs.renameSync(tmp, DESKTOP_CONFIG_FILE)
-      return pets.length
+    function findDesktopBrowser() {
+      const candidates = [
+        path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+        path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+        path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+        path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+      ]
+      for (const p of candidates) {
+        try { if (fs.existsSync(p)) return p } catch (err) {}
+      }
+      return null
     }
     function stopDesktopHelper() {
       if (desktopChild === null) return
-      try { desktopChild.kill() } catch (err) {}
+      const pid = desktopChild.pid
       desktopChild = null
+      try {
+        const killer = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true })
+        killer.on('error', () => {})
+      } catch (err) {}
     }
     function syncDesktopHelper() {
       try {
         const pets = desktopPets().length
         if (pets === 0) { stopDesktopHelper(); return }
-        writeDesktopConfig()
         if (desktopChild !== null && desktopChild.exitCode === null) return
+        const exe = findDesktopBrowser()
+        if (!exe) {
+          try { ctx.logger?.warn?.('[ai-widget-hub] 未找到 Edge/Chrome，无法打开桌面舞台') } catch (err) {}
+          return
+        }
+        const profile = path.join(DSH_HOME, 'dsh-ai-hub-desktop-profile')
+        try { fs.mkdirSync(profile, { recursive: true }) } catch (err) {}
+        let launchUrl = desktopAuthUrl()
+        if (launchUrl.indexOf('?') >= 0) launchUrl += '&dsh-desktop-stage=1'
+        else launchUrl += '?dsh-desktop-stage=1'
         const args = [
-          '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden',
-          '-File', DESKTOP_HELPER,
-          '-ConfigFile', DESKTOP_CONFIG_FILE,
-          '-PosFile', DESKTOP_POS_FILE,
+          '--app=' + launchUrl,
+          '--window-size=1120,720',
+          '--no-first-run',
+          '--no-default-browser-check',
+          '--user-data-dir=' + profile,
+          '--disable-features=Translate,MediaRouter',
         ]
-        desktopChild = spawn(DESKTOP_PS, args, { stdio: 'ignore', windowsHide: true })
+        desktopChild = spawn(exe, args, { detached: true, stdio: 'ignore', windowsHide: false })
+        try { desktopChild.unref() } catch (err) {}
         desktopChild.on('exit', () => { desktopChild = null })
         desktopChild.on('error', () => { desktopChild = null })
       } catch (err) {
-        try { ctx.logger?.warn?.('[ai-widget-hub] 启动桌面助手失败：' + String((err && err.message) || err)) } catch (err2) {}
+        try { ctx.logger?.warn?.('[ai-widget-hub] 启动桌面舞台失败：' + String((err && err.message) || err)) } catch (err2) {}
       }
+    }
+
+    /** 桌面舞台页面：加载所有「开启桌面显示」的真实挂件脚本，气泡/菜单与 DSH 内一致。 */
+    function desktopPageHtml() {
+      return `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>AI娘桌面</title>
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:radial-gradient(1200px 600px at 80% 100%,#1b2130 0%,#0f1115 60%,#0b0d12 100%);}
+body{color:#e5e7eb;font-family:system-ui,"Microsoft YaHei",sans-serif}
+#dsh-desktop-hint{position:absolute;left:12px;top:10px;font-size:12px;color:#9aa4b2;opacity:.85;pointer-events:none}
+</style></head>
+<body>
+<div id="dsh-desktop-hint">AI娘桌面 · 拖动可移动 · 右键/点击使用挂件菜单</div>
+<script>
+(function () {
+  var seq = '';
+  function want() {
+    return fetch('/dsh-ai-hub/state', { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (r) { return r.json() })
+      .then(function (d) {
+        var list = (d && d.widgets) || [];
+        return list.filter(function (w) { return w && w.enabled === true && w.desktop === true }).map(function (w) { return w.id })
+      });
+  }
+  function mount(ids) {
+    var left = ids.length;
+    if (!ids.length) { document.getElementById('dsh-desktop-hint').textContent = '没有开启「桌面显示」的 AI娘'; return }
+    ids.forEach(function (id, i) {
+      var s = document.createElement('script');
+      s.src = '/dsh-' + id + '/widget.js';
+      s.onload = function () {
+        left -= 1;
+        if (left === 0) layout();
+      };
+      s.onerror = function () { left -= 1; if (left === 0) layout(); };
+      document.body.appendChild(s);
+    });
+    setTimeout(layout, 1200);
+  }
+  function layout() {
+    var roots = [].slice.call(document.querySelectorAll('[data-dsh-widget-root]'));
+    roots.forEach(function (r, i) {
+      var col = i % 5;
+      var row = Math.floor(i / 5);
+      r.style.translate = (-(col * 200)) + 'px ' + (-(row * 210)) + 'px';
+    });
+  }
+  want().then(function (ids) {
+    seq = ids.join(',');
+    mount(ids);
+    setInterval(function () {
+      want().then(function (next) {
+        if (next.join(',') !== seq) location.reload();
+      }).catch(function () {});
+    }, 2500);
+  }).catch(function () {
+    document.getElementById('dsh-desktop-hint').textContent = '读取状态失败，请从 DSH 面板重新开启桌面显示';
+  });
+})();
+</script>
+</body></html>`
     }
 
     /** 挂载一只内嵌挂件，返回 { ok, fiber?, error? }。 */
@@ -777,6 +847,25 @@ export default {
               })
             } catch (err) {
               sendJson(res, 500, { ok: false, error: { code: 'desktop-toggle-failed', message: String((err && err.message) || err) } })
+            }
+          }),
+        )
+
+        // GET /dsh-ai-hub/desktop —— 桌面舞台页面（浏览器窗口加载真实挂件）
+        register(
+          'exact',
+          DESKTOP_PAGE_PATH,
+          routed((req, res) => {
+            const method = String((req && req.method) || 'GET').toUpperCase()
+            if (method !== 'GET' && method !== 'HEAD') { sendMethodNotAllowed(res, 'GET, HEAD'); return }
+            try {
+              const html = desktopPageHtml()
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'text/html; charset=utf-8')
+              res.setHeader('Cache-Control', 'no-store')
+              res.end(method === 'HEAD' ? undefined : html)
+            } catch (err) {
+              sendText(res, 500, 'desktop page failed')
             }
           }),
         )

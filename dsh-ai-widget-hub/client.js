@@ -245,6 +245,9 @@ window.__ModuleLoader__.load({
       'background:var(--dshaihub-layer1);font-size:12.5px;line-height:18px;color:var(--dshaihub-label2);word-break:break-word}',
       '.dshaihub-memwarn{display:flex;align-items:flex-start;gap:8px;margin:2px 0 0;padding:9px 12px;border:1px solid var(--dshaihub-warn,#d97706);border-radius:10px;background:rgba(217,119,6,.08);font-size:12.5px;line-height:18px;color:var(--dsw-alias-label-primary,inherit)}',
       '.dshaihub-memwarnIcon{flex:0 0 auto;font-size:14px;line-height:18px}',
+      '.dshaihub-deskBtn{margin-right:8px;padding:2px 8px;font-size:12px;line-height:18px;border-radius:8px;border:1px solid var(--dshaihub-border-strong);background:transparent;color:var(--dshaihub-label2);cursor:pointer}',
+      '.dshaihub-deskBtnOn{font-weight:600}',
+      '.dshaihub-deskBtn:disabled{opacity:.45;cursor:default}',
       '.dshaihub-noticeOk{border-color:var(--dshaihub-success)}',
       '.dshaihub-noticeWarn{border-color:var(--dshaihub-warn)}',
       '.dshaihub-noticeError{border-color:var(--dshaihub-error)}',
@@ -276,6 +279,7 @@ window.__ModuleLoader__.load({
         var w = items[i];
         if (!w || !w.id || !w.rootClass) continue;
         rules.push('html.' + OFF_PREFIX + w.id + ' ' + w.rootClass + '{display:none!important}');
+        rules.push('html.dshaihub-desk-' + w.id + ' ' + w.rootClass + '{display:none!important}');
       }
       return rules.join('\n');
     }
@@ -304,6 +308,8 @@ window.__ModuleLoader__.load({
           var cls = OFF_PREFIX + w.id;
           if (w.installed === false || w.enabled === true) root.classList.remove(cls);
           else root.classList.add(cls);
+          var deskCls = 'dshaihub-desk-' + w.id;
+          if (w.desktop === true) root.classList.add(deskCls); else root.classList.remove(deskCls);
         }
       } catch (err) {
         /* 隐藏失败只影响临时视觉效果，不抛给插槽 */
@@ -391,6 +397,23 @@ window.__ModuleLoader__.load({
           if (!data || data.ok !== true) {
             throw new Error((data && data.error && data.error.message) || 'bulk toggle rejected');
           }
+          return data;
+        });
+      });
+    }
+
+    /** 单只桌面显示开关。 */
+    function requestDesktopWidget(id, enabled) {
+      return fetch(API_DESKTOP, {
+        method: 'POST', cache: 'no-store', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ id: id, enabled: enabled === true }),
+      }).then(function (res) {
+        return res.text().then(function (text) {
+          var data = null;
+          try { data = text ? JSON.parse(text) : null } catch (err) { data = null }
+          if (!res.ok) throw new Error((data && data.error && data.error.message) || ('HTTP ' + res.status));
+          if (!data || data.ok !== true) throw new Error((data && data.error && data.error.message) || 'desktop toggle rejected');
           return data;
         });
       });
@@ -644,6 +667,14 @@ window.__ModuleLoader__.load({
             h('span', { className: 'dshaihub-dot', 'aria-hidden': 'true' }),
             h('span', { className: 'dshaihub-statusText' }, statusText)
           ),
+          h('button', {
+            type: 'button',
+            className: 'dshaihub-deskBtn' + (widget.desktop === true ? ' dshaihub-deskBtnOn' : ''),
+            title: widget.desktop === true ? '取消桌面显示' : '显示到桌面',
+            disabled: !installed || !enabled || busy,
+            style: { borderColor: widget.desktop === true ? accent : undefined, color: widget.desktop === true ? accent : undefined },
+            onClick: function () { props.onDesktop(widget, widget.desktop !== true); },
+          }, '桌面'),
           h(ToggleSwitch, {
             checked: enabled,
             disabled: !installed || busy,
@@ -805,6 +836,26 @@ window.__ModuleLoader__.load({
         });
       }
 
+      /** 单只：显示到桌面 / 取消桌面显示（桌面窗口由 Host 统一管理）。 */
+      function desktopWidget(widget, next) {
+        if (!widget || !widget.id) return;
+        if (widget.enabled !== true) return;
+        var target = next === true;
+        updateWidget(widget.id, { desktop: target });
+        applyGateClasses(widgetsRef.current);
+        requestDesktopWidget(widget.id, target).then(function (result) {
+          if (!aliveRef.current) return;
+          setNotice({ kind: 'ok', text: target ? '已开启桌面显示（DSH 内隐藏该 AI娘）' : '已关闭桌面显示' });
+          load({ silent: true });
+          return result;
+        }).catch(function (err) {
+          if (!aliveRef.current) return;
+          updateWidget(widget.id, { desktop: !target });
+          applyGateClasses(widgetsRef.current);
+          setNotice({ kind: 'error', text: t('noticeFailed', { message: errorMessage(err) }) });
+        });
+      }
+
       /**
        * 切一只挂件：先乐观更新（开关 + 即时隐藏/显示），再请求 Host；
        * 失败或 application !== 'applied' 时回滚并给提示。
@@ -952,11 +1003,14 @@ window.__ModuleLoader__.load({
           load({ silent: true });
         }, POLL_MS);
         var onFocus = function () { load({ silent: true }); };
+        var onDesktopChanged = function () { load({ silent: true }); };
+        window.addEventListener('dsh-ai-hub:desktop-changed', onDesktopChanged);
         window.addEventListener('focus', onFocus);
         return function () {
           aliveRef.current = false;
           window.clearInterval(timer);
           window.removeEventListener('focus', onFocus);
+          window.removeEventListener('dsh-ai-hub:desktop-changed', onDesktopChanged);
         };
       }, []);
 
@@ -1013,6 +1067,7 @@ window.__ModuleLoader__.load({
             widget: widget,
             busy: busyIds[widget.id] === true,
             onToggle: function (w, next) { toggleWidget(w, next, false); },
+            onDesktop: function (w, next) { desktopWidget(w, next); },
           }));
         }
         pageBody = h('div', { className: 'dshaihub-grid' }, cards);
@@ -1252,6 +1307,15 @@ window.__ModuleLoader__.load({
     }
 
     function apply(ctx) {
+      // 桌面舞台引导：先用带 token 的 URL 打开 DSH 完成登录，再跳到只含挂件的舞台页
+try {
+  var bootParams = new URLSearchParams(window.location.search);
+  if (bootParams.get('dsh-desktop-stage') === '1') {
+    window.location.replace('/dsh-ai-hub/desktop');
+    return;
+  }
+} catch (err) {}
+
       // 整个挂载过程兜底：Client 半出问题不能把宿主页面其它部分带崩
       try {
         mount(ctx);

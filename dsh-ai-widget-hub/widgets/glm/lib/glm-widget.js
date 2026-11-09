@@ -2183,7 +2183,12 @@ function desktopToggle() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: 'glm', enabled: target }),
     }).then(function (r) { return r.json() }).then(function (d) {
-      if (d && d.ok) { desktopOn = target; desktopBtnRender() }
+      if (d && d.ok) {
+        desktopOn = target; desktopBtnRender()
+        // 桌面显示开启时，DSH 内这只挂件隐藏（总共只有一只）
+        try { document.documentElement.classList.toggle('dshaihub-desk-' + 'glm', target) } catch (e1) {}
+        try { window.dispatchEvent(new CustomEvent('dsh-ai-hub:desktop-changed')) } catch (e2) {}
+      }
     }).catch(function () {})
   } catch (err) {}
 }
