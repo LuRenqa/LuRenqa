@@ -12,7 +12,7 @@ DeepSeek Harness（DSH）Web 界面右下角的一只常驻桌宠：**Gemini娘*
 
 本仓库还带一个**自包含**的管理插件 [`dsh-ai-widget-hub/`](dsh-ai-widget-hub/README.md)：
 **它已经把下面全部 9 只余额桌宠的运行时内置在自己包里**（`widgets/<id>/`，含 MIMO娘；约 76 MiB），
-且 9 只都支持「2 秒内连点三下切换双形态」，
+9 只均支持**双形态**（菜单「角色形态」按钮切换）、**角色/气泡大小独立调节**、点击冷却、**显示到电脑桌面**（透明桌面宠物）、**防卡死重新居中**，
 在 DSH 左侧栏增加**一个入口「AI娘」**，打开后是一页卡片式的「AI娘挂件中心」，
 每张卡片一个开关，**即时开 / 关**，不用再逐个去插件市场里找。
 
@@ -20,7 +20,7 @@ DeepSeek Harness（DSH）Web 界面右下角的一只常驻桌宠：**Gemini娘*
 开关由 hub 自己用 Cordis child plugin **挂载 / 卸载**内置挂件（无需重启），状态存在
 `$DSH_HOME/dsh-ai-widget-hub.json`；它与独立挂件包**不要同时安装**（同一批 `/dsh-*` 路由会重复注册）。
 
-- 入口：左侧栏「AI娘」（panel id `ai-widgets`）
+- 入口：左侧栏「AI娘」（panel id `ai-widgets`）；当前版本 **v0.3.0**
 - 界面：搜索、全部开启 / 全部关闭、刷新；卡片显示头像 / 版本 / 描述 / 启用状态
 - 首次安装后桌面客户端需完整重启一次（页面注入表在启动时缓存）；之后开关都即时生效
 - 技术细节、安全栅栏、安装与限制见 [`dsh-ai-widget-hub/README.md`](dsh-ai-widget-hub/README.md)
