@@ -1343,6 +1343,7 @@ function dshwConnected(el) {
 }
 
 var root = document.createElement('div')
+root.setAttribute('data-dsh-widget-root', '')
 root.className = 'dshwv-root'
 
 var img = document.createElement('img')
@@ -18768,14 +18769,10 @@ function whaleToggleForm() {
     whaleFormAlt = !whaleFormAlt
     var url = whaleFormAlt ? IMG2_URL : IMG_URL
     // 先移除形态1的命中轮廓：否则形态2 会被旧 clip-path 裁掉（头顶/帽子等超出部分被切）
+    // 性能：切换时不再重建命中图（重建 610×610 命中画布 + 凸包约 ~100ms，是切换卡顿主因）；
+    //       点击判定沿用形态1 的命中掩码（两态剪影接近），视觉上无任何裁切。
     try { applyHitClip('') } catch (err) {}
     img.src = url
-    // 延后到下一帧之后重建形态2 的命中轮廓（不阻塞切换动画；连续切换时用 src 校验防串台）
-    setTimeout(function () {
-      try {
-        if (currentRole && currentRole.id === 'default' && img.getAttribute('src') === url) setupHitTest(url)
-      } catch (err) {}
-    }, 120)
     // 性能：两态剪影接近，沿用形态1的命中图，切形态时不再重算 610×610 命中画布（省掉解码/凸包/回流）
     applyArtScale()
   } catch (err) {}
@@ -19190,7 +19187,44 @@ function render() {
   // 注意:不在泡泡显示期间整泡重绘(内容在用户观看时保持稳定);
   // 数值/峰谷等更新由“泡泡消失→下一次显示”时的渲染自然采用最新 state
 }
+// —— 交互性能：缓存挂件矩形 + 命中结果，避免每个 pointer 事件都对每个挂件做
+// getBoundingClientRect / getImageData（9 只同开时这些是主要卡顿来源）
+var whaleRectCache = null
+var whaleHitCache = { x: -1, y: -1, t: 0, r: false }
+function whaleInvalidateRect() { whaleRectCache = null }
+function whaleNearCached(e, pad) {
+  try {
+    if (!e || typeof e.clientX !== 'number' || typeof e.clientY !== 'number') return true
+    if (!whaleRectCache) whaleRectCache = root.getBoundingClientRect()
+    var r = whaleRectCache
+    var p = pad || 0
+    return e.clientX >= r.left - p && e.clientX <= r.right + p && e.clientY >= r.top - p && e.clientY <= r.bottom + p
+  } catch (err) { return true }
+}
+function whaleMaybeHit(e) {
+  if (!whaleNearCached(e, 24)) return false
+  try {
+    var n = Date.now()
+    if (Math.abs(e.clientX - whaleHitCache.x) < 1 && Math.abs(e.clientY - whaleHitCache.y) < 1 && n - whaleHitCache.t < 150) return whaleHitCache.r
+    var r = false
+    try { r = isWhaleHit(e) } catch (err) { r = false }
+    whaleHitCache.x = e.clientX
+    whaleHitCache.y = e.clientY
+    whaleHitCache.t = n
+    whaleHitCache.r = r
+    return r
+  } catch (err) { return false }
+}
+function whaleRaiseZ() {
+  try {
+    var top = (window.__dshWidgetZTop || 9999) + 1
+    if (top > 18000) top = 10000
+    window.__dshWidgetZTop = top
+    root.style.zIndex = String(top)
+  } catch (err) {}
+}
 function express() {
+  whaleInvalidateRect()
   root.style.right = 'auto'
   root.style.bottom = 'auto'
   root.style.left = state.left + 'px'
@@ -19982,7 +20016,7 @@ function toggleMenu() {
   // v865（issue #237 后半）：打开菜单时补读一次 size 配置（别的端/别的标签改过也能立刻生效）
   try { resyncSizeCfg() } catch (err) {}
   menuOpen = !menuOpen
-  if (menuOpen) positionMenu()
+  if (menuOpen) { positionMenu(); whaleRaiseZ() }
   menuBox.classList.toggle('dshwv-menu-open', menuOpen)
   if (menuOpen && !menuBtnHide) menuBtn.classList.add('dshwv-menu-btn-visible')
   // 汉堡按钮关闭菜单时同样复位用量子界面(用量态时滑回主菜单态,
@@ -21788,6 +21822,11 @@ function isWhaleHit(e) {
   }
 }
 function onDocPointerDown(e) {
+  try {
+    var __t = e && e.target
+    if (__t && __t.closest && __t.closest('[data-dsh-widget-root]') && !root.contains(__t)) return
+  } catch (err) {}
+
   if (e.target && e.target.closest) {
     if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu-btn')) return
     // 点击在面板/弹窗内部：交给面板自身逻辑处理
@@ -21815,7 +21854,8 @@ function onDocPointerDown(e) {
     return
   }
   if (e.button !== 0 && e.pointerType === 'mouse') return
-  if (!isWhaleHit(e)) return
+  if (!whaleMaybeHit(e)) return
+  whaleRaiseZ()
   try { e.preventDefault(); e.stopPropagation() } catch (err) {}
   var vp = viewport()
   var rect = root.getBoundingClientRect()
@@ -21840,13 +21880,33 @@ function onDocPointerMove(e) {
   state.top = clampWidgetTop(drag.origTop + dy, Math.max(0, drag.vp.h - drag.h))
   express()
 }
+// 连点时去重：2 秒内连续点击只刷新一次余额，减少点击链路里的网络 + 渲染开销
+var whaleLastClickRefreshAt = 0
+function whaleClickRefresh() {
+  try {
+    var n = Date.now()
+    if (n - whaleLastClickRefreshAt < 700) return
+    whaleLastClickRefreshAt = n
+    refresh(true)
+  } catch (err) { try { refresh(true) } catch (e2) {} }
+}
 function onDocPointerUp(e) {
+  try {
+    var __t = e && e.target
+    if (!(drag && drag.active) && __t && __t.closest && __t.closest('[data-dsh-widget-root]') && !root.contains(__t)) return
+  } catch (err) {}
+
   // 拦截鲸鱼区域内的 pointerup：防止下方元素（如文件行）监听 pointerup 穿透误触发
-  try { if (isWhaleHit(e)) { e.preventDefault(); e.stopPropagation() } } catch (err) {}
+  try { if (whaleMaybeHit(e)) { e.preventDefault(); e.stopPropagation() } } catch (err) {}
   endDrag(e, true)
 }
 function onDocPointerCancel(e) { endDrag(e, false, true) }
 function onDocClickStopper(e) {
+  try {
+    var __t = e && e.target
+    if (__t && __t.closest && __t.closest('[data-dsh-widget-root]') && !root.contains(__t)) return
+  } catch (err) {}
+
   // 只在鲸鱼命中区域拦截 click（保持透明区 pass-through）。
   // 持久注册（不随 endDrag 移除）——click 在 pointerup 之后派发，
   // 若在 endDrag 移除会导致 click 穿透到下方元素（如误打开文件）。
@@ -21861,7 +21921,7 @@ function onDocClickStopper(e) {
         e.target.closest('.dshwv-resmask') ||
         e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return
   }
-  if (!isWhaleHit(e)) return
+  if (!whaleMaybeHit(e)) return
   try { e.preventDefault(); e.stopPropagation() } catch (err) {}
 }
 // 右键小鲸鱼唤出菜单(仅在开启「隐藏菜单按钮」时生效;菜单位置与按钮唤出一致)
@@ -21882,7 +21942,7 @@ function onDocContextMenu(e) {
           e.target.closest('.dshwv-resmask') ||
           e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return
     }
-    if (!isWhaleHit(e)) return
+    if (!whaleMaybeHit(e)) return
     e.preventDefault()
     toggleMenu()
   } catch (err) {}
@@ -22038,6 +22098,11 @@ function onDocPointerMoveCursor(e) {
     setWidgetCursor('grabbing')
     return
   }
+  if (!whaleNearCached(e, 320)) {
+    if (widgetCursor) setWidgetCursor('')
+    if (!menuBtnHide && !menuOpen) menuBtn.classList.remove('dshwv-menu-btn-visible')
+    return
+  }
   var el = null
   try { el = document.elementFromPoint(e.clientX, e.clientY) } catch (err) {}
   if (el && el.closest && (el.closest('.dshwv-pop') || el.closest('.dshwv-menu') || el.closest('.dshwv-menu-btn') || el.closest('.dshwv-rolelist') || el.closest('.dshwv-cropmask') || el.closest('.dshwv-confirmmask') || el.closest('.dshwv-audiolist') || el.closest('.dshwv-audiomask') || el.closest('.dshwv-snapmask') || el.closest('.dshwv-bubmask') || el.closest('.dshwv-framemask') || el.closest('.dshwv-qedit') || el.closest('.dshwv-usagepanel') || el.closest('.dshwv-usage-mask') || el.closest('.dshwv-resmask') || el.closest('.dshwv-custmenu') || el.closest('.dshwv-custbtn'))) {
@@ -22083,7 +22148,7 @@ function endDrag(e, clickAllowed, cancelled) {
     // 长按刚唤出菜单:这次抬手不再当作点击(避免顺带弹出余额泡)
     if (longPressRecent()) return
     whaleClick()
-    refresh(true)
+    whaleClickRefresh()
     return
   }
   var dx = e.clientX - drag.startX

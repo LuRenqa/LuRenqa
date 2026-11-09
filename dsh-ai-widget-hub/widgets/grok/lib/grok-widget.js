@@ -1366,6 +1366,7 @@ function dshgkConnected(el) {
 }
 
 var root = document.createElement('div')
+root.setAttribute('data-dsh-widget-root', '')
 root.className = 'dshgkv-root'
 
 var img = document.createElement('img')
@@ -18807,14 +18808,10 @@ function grokToggleForm() {
     grokFormAlt = !grokFormAlt
     var url = grokFormAlt ? IMG2_URL : IMG_URL
     // 先移除形态1的命中轮廓：否则形态2 会被旧 clip-path 裁掉（头顶/帽子等超出部分被切）
+    // 性能：切换时不再重建命中图（重建 610×610 命中画布 + 凸包约 ~100ms，是切换卡顿主因）；
+    //       点击判定沿用形态1 的命中掩码（两态剪影接近），视觉上无任何裁切。
     try { applyHitClip('') } catch (err) {}
     img.src = url
-    // 延后到下一帧之后重建形态2 的命中轮廓（不阻塞切换动画；连续切换时用 src 校验防串台）
-    setTimeout(function () {
-      try {
-        if (currentRole && currentRole.id === 'default' && img.getAttribute('src') === url) setupHitTest(url)
-      } catch (err) {}
-    }, 120)
     // 性能：两态剪影接近，沿用形态1的命中图，切形态时不再重算 610×610 命中画布（省掉解码/凸包/回流）
     applyArtScale()
   } catch (err) {}
@@ -19229,7 +19226,44 @@ function render() {
   // 注意:不在泡泡显示期间整泡重绘(内容在用户观看时保持稳定);
   // 数值/峰谷等更新由“泡泡消失→下一次显示”时的渲染自然采用最新 state
 }
+// —— 交互性能：缓存挂件矩形 + 命中结果，避免每个 pointer 事件都对每个挂件做
+// getBoundingClientRect / getImageData（9 只同开时这些是主要卡顿来源）
+var grokRectCache = null
+var grokHitCache = { x: -1, y: -1, t: 0, r: false }
+function grokInvalidateRect() { grokRectCache = null }
+function grokNearCached(e, pad) {
+  try {
+    if (!e || typeof e.clientX !== 'number' || typeof e.clientY !== 'number') return true
+    if (!grokRectCache) grokRectCache = root.getBoundingClientRect()
+    var r = grokRectCache
+    var p = pad || 0
+    return e.clientX >= r.left - p && e.clientX <= r.right + p && e.clientY >= r.top - p && e.clientY <= r.bottom + p
+  } catch (err) { return true }
+}
+function grokMaybeHit(e) {
+  if (!grokNearCached(e, 24)) return false
+  try {
+    var n = Date.now()
+    if (Math.abs(e.clientX - grokHitCache.x) < 1 && Math.abs(e.clientY - grokHitCache.y) < 1 && n - grokHitCache.t < 150) return grokHitCache.r
+    var r = false
+    try { r = isgrokHit(e) } catch (err) { r = false }
+    grokHitCache.x = e.clientX
+    grokHitCache.y = e.clientY
+    grokHitCache.t = n
+    grokHitCache.r = r
+    return r
+  } catch (err) { return false }
+}
+function grokRaiseZ() {
+  try {
+    var top = (window.__dshWidgetZTop || 9999) + 1
+    if (top > 18000) top = 10000
+    window.__dshWidgetZTop = top
+    root.style.zIndex = String(top)
+  } catch (err) {}
+}
 function express() {
+  grokInvalidateRect()
   root.style.right = 'auto'
   root.style.bottom = 'auto'
   root.style.left = state.left + 'px'
@@ -20021,7 +20055,7 @@ function toggleMenu() {
   // v865（issue #237 后半）：打开菜单时补读一次 size 配置（别的端/别的标签改过也能立刻生效）
   try { resyncSizeCfg() } catch (err) {}
   menuOpen = !menuOpen
-  if (menuOpen) positionMenu()
+  if (menuOpen) { positionMenu(); grokRaiseZ() }
   menuBox.classList.toggle('dshgkv-menu-open', menuOpen)
   if (menuOpen && !menuBtnHide) menuBtn.classList.add('dshgkv-menu-btn-visible')
   // 汉堡按钮关闭菜单时同样复位用量子界面(用量态时滑回主菜单态,
@@ -21991,6 +22025,11 @@ function isgrokHit(e) {
   }
 }
 function onDocPointerDown(e) {
+  try {
+    var __t = e && e.target
+    if (__t && __t.closest && __t.closest('[data-dsh-widget-root]') && !root.contains(__t)) return
+  } catch (err) {}
+
   if (e.target && e.target.closest) {
     if (e.target.closest('.dshgkv-pop') || e.target.closest('.dshgkv-menu-btn')) return
     // 点击在面板/弹窗内部：交给面板自身逻辑处理
@@ -22018,7 +22057,8 @@ function onDocPointerDown(e) {
     return
   }
   if (e.button !== 0 && e.pointerType === 'mouse') return
-  if (!isgrokHit(e)) return
+  if (!grokMaybeHit(e)) return
+  grokRaiseZ()
   try { e.preventDefault(); e.stopPropagation() } catch (err) {}
   var vp = viewport()
   var rect = root.getBoundingClientRect()
@@ -22043,13 +22083,33 @@ function onDocPointerMove(e) {
   state.top = clampWidgetTop(drag.origTop + dy, Math.max(0, drag.vp.h - drag.h))
   express()
 }
+// 连点时去重：2 秒内连续点击只刷新一次余额，减少点击链路里的网络 + 渲染开销
+var grokLastClickRefreshAt = 0
+function grokClickRefresh() {
+  try {
+    var n = Date.now()
+    if (n - grokLastClickRefreshAt < 700) return
+    grokLastClickRefreshAt = n
+    refresh(true)
+  } catch (err) { try { refresh(true) } catch (e2) {} }
+}
 function onDocPointerUp(e) {
+  try {
+    var __t = e && e.target
+    if (!(drag && drag.active) && __t && __t.closest && __t.closest('[data-dsh-widget-root]') && !root.contains(__t)) return
+  } catch (err) {}
+
   // 拦截Grok娘区域内的 pointerup：防止下方元素（如文件行）监听 pointerup 穿透误触发
-  try { if (isgrokHit(e)) { e.preventDefault(); e.stopPropagation() } } catch (err) {}
+  try { if (grokMaybeHit(e)) { e.preventDefault(); e.stopPropagation() } } catch (err) {}
   endDrag(e, true)
 }
 function onDocPointerCancel(e) { endDrag(e, false, true) }
 function onDocClickStopper(e) {
+  try {
+    var __t = e && e.target
+    if (__t && __t.closest && __t.closest('[data-dsh-widget-root]') && !root.contains(__t)) return
+  } catch (err) {}
+
   // 只在Grok娘命中区域拦截 click（保持透明区 pass-through）。
   // 持久注册（不随 endDrag 移除）——click 在 pointerup 之后派发，
   // 若在 endDrag 移除会导致 click 穿透到下方元素（如误打开文件）。
@@ -22064,7 +22124,7 @@ function onDocClickStopper(e) {
         e.target.closest('.dshgkv-resmask') ||
         e.target.closest('.dshgkv-custmenu') || e.target.closest('.dshgkv-custbtn')) return
   }
-  if (!isgrokHit(e)) return
+  if (!grokMaybeHit(e)) return
   try { e.preventDefault(); e.stopPropagation() } catch (err) {}
 }
 // 右键Grok娘唤出菜单(仅在开启「隐藏菜单按钮」时生效;菜单位置与按钮唤出一致)
@@ -22085,7 +22145,7 @@ function onDocContextMenu(e) {
           e.target.closest('.dshgkv-resmask') ||
           e.target.closest('.dshgkv-custmenu') || e.target.closest('.dshgkv-custbtn')) return
     }
-    if (!isgrokHit(e)) return
+    if (!grokMaybeHit(e)) return
     e.preventDefault()
     toggleMenu()
   } catch (err) {}
@@ -22241,6 +22301,11 @@ function onDocPointerMoveCursor(e) {
     setWidgetCursor('grabbing')
     return
   }
+  if (!grokNearCached(e, 320)) {
+    if (widgetCursor) setWidgetCursor('')
+    if (!menuBtnHide && !menuOpen) menuBtn.classList.remove('dshgkv-menu-btn-visible')
+    return
+  }
   var el = null
   try { el = document.elementFromPoint(e.clientX, e.clientY) } catch (err) {}
   if (el && el.closest && (el.closest('.dshgkv-pop') || el.closest('.dshgkv-menu') || el.closest('.dshgkv-menu-btn') || el.closest('.dshgkv-rolelist') || el.closest('.dshgkv-cropmask') || el.closest('.dshgkv-confirmmask') || el.closest('.dshgkv-audiolist') || el.closest('.dshgkv-audiomask') || el.closest('.dshgkv-snapmask') || el.closest('.dshgkv-bubmask') || el.closest('.dshgkv-framemask') || el.closest('.dshgkv-qedit') || el.closest('.dshgkv-usagepanel') || el.closest('.dshgkv-usage-mask') || el.closest('.dshgkv-resmask') || el.closest('.dshgkv-custmenu') || el.closest('.dshgkv-custbtn'))) {
@@ -22286,7 +22351,7 @@ function endDrag(e, clickAllowed, cancelled) {
     // 长按刚唤出菜单:这次抬手不再当作点击(避免顺带弹出余额泡)
     if (longPressRecent()) return
     grokClick()
-    refresh(true)
+    grokClickRefresh()
     return
   }
   var dx = e.clientX - drag.startX

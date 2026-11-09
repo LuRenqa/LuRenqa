@@ -49,6 +49,11 @@
 13. **v0.2.8**：① 形态切换先调用 `applyHitClip("")` 再 120ms 后 `setupHitTest(url)`，避免旧 clip 裁掉形态2；
     ② 每只挂件菜单新增「气泡大小」行（默认 10 档 = 因子 1.0），`root` 上设置 `--<前缀>-bubble-scale`，
     `.pop` CSS `transform:scale(var(...));transform-origin:100% 100%`；localStorage key `<前缀>-bubble-size` 持久化。
+14. **v0.2.9 交互/卡顿优化（trace 驱动）**：① 形态切换只清空旧 clip、不再 `setupHitTest`；
+    ② 各挂件 pointerdown/up/click 用 `NearCached`（矩形缓存）+ `MaybeHit`（150ms 命中缓存）；
+    ③ pointermove 距挂件 >320px 直接返回（不做 elementFromPoint / 命中检测）；
+    ④ 点击后的 `refresh(true)` 700ms 去重；⑤ `data-dsh-widget-root` 标记 + 跨挂件事件忽略 + 共享 z-index 置顶，
+    修复菜单点击穿透到其它 AI娘的问题。
 
 ## 0. 关键结论（已由 Lead 实测/查证，不要再自行推翻）
 

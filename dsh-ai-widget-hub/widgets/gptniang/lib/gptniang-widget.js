@@ -927,6 +927,7 @@ function dshgnConnected(el) {
 }
 
 var root = document.createElement('div')
+root.setAttribute('data-dsh-widget-root', '')
 root.className = 'dshgnv-root'
 
 var img = document.createElement('img')
@@ -13029,14 +13030,10 @@ function gptToggleForm() {
     gptFormAlt = !gptFormAlt
     var url = gptFormAlt ? IMG2_URL : IMG_URL
     // 先移除形态1的命中轮廓：否则形态2 会被旧 clip-path 裁掉（头顶/帽子等超出部分被切）
+    // 性能：切换时不再重建命中图（重建 610×610 命中画布 + 凸包约 ~100ms，是切换卡顿主因）；
+    //       点击判定沿用形态1 的命中掩码（两态剪影接近），视觉上无任何裁切。
     try { applyHitClip('') } catch (err) {}
     img.src = url
-    // 延后到下一帧之后重建形态2 的命中轮廓（不阻塞切换动画；连续切换时用 src 校验防串台）
-    setTimeout(function () {
-      try {
-        if (currentRole && currentRole.id === 'default' && img.getAttribute('src') === url) setupHitTest(url)
-      } catch (err) {}
-    }, 120)
     // 性能：两态剪影接近，沿用形态1的命中图，切形态时不再重算 610×610 命中画布（省掉解码/凸包/回流）
     // 用 setScale 重算一次：状态2 在用户设定的大小上再 +3 档，并保持右下角锚点
     applyArtScale()
@@ -13451,7 +13448,44 @@ function render() {
   // 注意:不在泡泡显示期间整泡重绘(内容在用户观看时保持稳定);
   // 数值/峰谷等更新由“泡泡消失→下一次显示”时的渲染自然采用最新 state
 }
+// —— 交互性能：缓存挂件矩形 + 命中结果，避免每个 pointer 事件都对每个挂件做
+// getBoundingClientRect / getImageData（9 只同开时这些是主要卡顿来源）
+var gptniangRectCache = null
+var gptniangHitCache = { x: -1, y: -1, t: 0, r: false }
+function gptniangInvalidateRect() { gptniangRectCache = null }
+function gptniangNearCached(e, pad) {
+  try {
+    if (!e || typeof e.clientX !== 'number' || typeof e.clientY !== 'number') return true
+    if (!gptniangRectCache) gptniangRectCache = root.getBoundingClientRect()
+    var r = gptniangRectCache
+    var p = pad || 0
+    return e.clientX >= r.left - p && e.clientX <= r.right + p && e.clientY >= r.top - p && e.clientY <= r.bottom + p
+  } catch (err) { return true }
+}
+function gptniangMaybeHit(e) {
+  if (!gptniangNearCached(e, 24)) return false
+  try {
+    var n = Date.now()
+    if (Math.abs(e.clientX - gptniangHitCache.x) < 1 && Math.abs(e.clientY - gptniangHitCache.y) < 1 && n - gptniangHitCache.t < 150) return gptniangHitCache.r
+    var r = false
+    try { r = isGptniangHit(e) } catch (err) { r = false }
+    gptniangHitCache.x = e.clientX
+    gptniangHitCache.y = e.clientY
+    gptniangHitCache.t = n
+    gptniangHitCache.r = r
+    return r
+  } catch (err) { return false }
+}
+function gptniangRaiseZ() {
+  try {
+    var top = (window.__dshWidgetZTop || 9999) + 1
+    if (top > 18000) top = 10000
+    window.__dshWidgetZTop = top
+    root.style.zIndex = String(top)
+  } catch (err) {}
+}
 function express() {
+  gptniangInvalidateRect()
   root.style.right = 'auto'
   root.style.bottom = 'auto'
   root.style.left = state.left + 'px'
@@ -14097,7 +14131,7 @@ var menuOpen = false
 var menuClosedAt = 0 // 最近一次关闭菜单的时刻(用于避免"关掉后同一次手势又把它长按打开")
 function toggleMenu() {
   menuOpen = !menuOpen
-  if (menuOpen) positionMenu()
+  if (menuOpen) { positionMenu(); gptniangRaiseZ() }
   menuBox.classList.toggle('dshgnv-menu-open', menuOpen)
   if (menuOpen && !menuBtnHide) menuBtn.classList.add('dshgnv-menu-btn-visible')
   // 汉堡按钮关闭菜单时同样复位用量子界面(用量态时滑回主菜单态,
@@ -15869,6 +15903,11 @@ function isGptniangHit(e) {
   }
 }
 function onDocPointerDown(e) {
+  try {
+    var __t = e && e.target
+    if (__t && __t.closest && __t.closest('[data-dsh-widget-root]') && !root.contains(__t)) return
+  } catch (err) {}
+
   if (e.target && e.target.closest) {
     if (e.target.closest('.dshgnv-pop') || e.target.closest('.dshgnv-menu-btn')) return
     // 点击在面板/弹窗内部：交给面板自身逻辑处理
@@ -15896,7 +15935,8 @@ function onDocPointerDown(e) {
     return
   }
   if (e.button !== 0 && e.pointerType === 'mouse') return
-  if (!isGptniangHit(e)) return
+  if (!gptniangMaybeHit(e)) return
+  gptniangRaiseZ()
   try { e.preventDefault(); e.stopPropagation() } catch (err) {}
   var vp = viewport()
   var rect = root.getBoundingClientRect()
@@ -15920,13 +15960,33 @@ function onDocPointerMove(e) {
   state.top = clamp(drag.origTop + dy, 0, Math.max(0, drag.vp.h - drag.h))
   express()
 }
+// 连点时去重：2 秒内连续点击只刷新一次余额，减少点击链路里的网络 + 渲染开销
+var gptniangLastClickRefreshAt = 0
+function gptniangClickRefresh() {
+  try {
+    var n = Date.now()
+    if (n - gptniangLastClickRefreshAt < 700) return
+    gptniangLastClickRefreshAt = n
+    refresh(true)
+  } catch (err) { try { refresh(true) } catch (e2) {} }
+}
 function onDocPointerUp(e) {
+  try {
+    var __t = e && e.target
+    if (!(drag && drag.active) && __t && __t.closest && __t.closest('[data-dsh-widget-root]') && !root.contains(__t)) return
+  } catch (err) {}
+
   // 拦截GPT娘区域内的 pointerup：防止下方元素（如文件行）监听 pointerup 穿透误触发
-  try { if (isGptniangHit(e)) { e.preventDefault(); e.stopPropagation() } } catch (err) {}
+  try { if (gptniangMaybeHit(e)) { e.preventDefault(); e.stopPropagation() } } catch (err) {}
   endDrag(e, true)
 }
 function onDocPointerCancel(e) { endDrag(e, false, true) }
 function onDocClickStopper(e) {
+  try {
+    var __t = e && e.target
+    if (__t && __t.closest && __t.closest('[data-dsh-widget-root]') && !root.contains(__t)) return
+  } catch (err) {}
+
   // 只在GPT娘命中区域拦截 click（保持透明区 pass-through）。
   // 持久注册（不随 endDrag 移除）——click 在 pointerup 之后派发，
   // 若在 endDrag 移除会导致 click 穿透到下方元素（如误打开文件）。
@@ -15941,7 +16001,7 @@ function onDocClickStopper(e) {
         e.target.closest('.dshgnv-resmask') ||
         e.target.closest('.dshgnv-custmenu') || e.target.closest('.dshgnv-custbtn')) return
   }
-  if (!isGptniangHit(e)) return
+  if (!gptniangMaybeHit(e)) return
   try { e.preventDefault(); e.stopPropagation() } catch (err) {}
 }
 // 右键GPT娘唤出菜单(仅在开启「隐藏菜单按钮」时生效;菜单位置与按钮唤出一致)
@@ -15962,7 +16022,7 @@ function onDocContextMenu(e) {
           e.target.closest('.dshgnv-resmask') ||
           e.target.closest('.dshgnv-custmenu') || e.target.closest('.dshgnv-custbtn')) return
     }
-    if (!isGptniangHit(e)) return
+    if (!gptniangMaybeHit(e)) return
     e.preventDefault()
     toggleMenu()
   } catch (err) {}
@@ -16118,6 +16178,11 @@ function onDocPointerMoveCursor(e) {
     setWidgetCursor('grabbing')
     return
   }
+  if (!gptniangNearCached(e, 320)) {
+    if (widgetCursor) setWidgetCursor('')
+    if (!menuBtnHide && !menuOpen) menuBtn.classList.remove('dshgnv-menu-btn-visible')
+    return
+  }
   var el = null
   try { el = document.elementFromPoint(e.clientX, e.clientY) } catch (err) {}
   if (el && el.closest && (el.closest('.dshgnv-pop') || el.closest('.dshgnv-menu') || el.closest('.dshgnv-menu-btn') || el.closest('.dshgnv-rolelist') || el.closest('.dshgnv-cropmask') || el.closest('.dshgnv-confirmmask') || el.closest('.dshgnv-audiolist') || el.closest('.dshgnv-audiomask') || el.closest('.dshgnv-snapmask') || el.closest('.dshgnv-bubmask') || el.closest('.dshgnv-qedit') || el.closest('.dshgnv-usagepanel') || el.closest('.dshgnv-usage-mask') || el.closest('.dshgnv-resmask') || el.closest('.dshgnv-custmenu') || el.closest('.dshgnv-custbtn'))) {
@@ -16163,7 +16228,7 @@ function endDrag(e, clickAllowed, cancelled) {
     // 长按刚唤出菜单:这次抬手不再当作点击(避免顺带弹出余额泡)
     if (longPressRecent()) return
     gptniangClick()
-    refresh(true)
+    gptniangClickRefresh()
     return
   }
   var dx = e.clientX - drag.startX
