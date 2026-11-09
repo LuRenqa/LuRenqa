@@ -18813,10 +18813,19 @@ function bubblePreviewInto(container, mods, widthPx, opts) {
 //  - 正显示第 1 次点击泡泡:不切换内容,仅重置留存计时
 function mimoClick() {
   try {
-    // 点击冷却：上一次点击动画/音效未播放完前，忽略新的点击（防连点抢动画 / 叠音）
+    // 点击冷却（每只挂件独立计时）：上一次点击的「按压回弹动画 + 按压/松开音效」全部播放完之前，
+    // 当前这只 AI娘忽略新的点击（不影响其它 AI娘各自计时）。
     var mimoNow = Date.now()
-    if (mimoLastClickAt && mimoNow - mimoLastClickAt < 700) return
-    mimoLastClickAt = mimoNow
+    if (mimoClickBusyUntil && mimoNow < mimoClickBusyUntil) return
+    var mimoBusyMs = 420 // 按压→回弹动画约 0.22s，留余量
+    try {
+      var mimoPressDur = pressAudio && isFinite(pressAudio.duration) ? pressAudio.duration : 0
+      var mimoReleaseDur = releaseAudio && isFinite(releaseAudio.duration) ? releaseAudio.duration : 0
+      var mimoSoundMs = (mimoPressDur + mimoReleaseDur) * 1000 + 150 // 按压音 + 松开音 + 衔接余量
+      if (mimoSoundMs > mimoBusyMs) mimoBusyMs = mimoSoundMs
+    } catch (err) {}
+    if (mimoBusyMs < 650) mimoBusyMs = 650
+    mimoClickBusyUntil = mimoNow + mimoBusyMs
     if (!bubbleOn) return
     if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert')) return // 消耗/预警提醒期间点MIMO娘不动作(点泡泡才关)
     if (!bubbleShown) {
@@ -18865,7 +18874,7 @@ function bubbleNext() {
 // 手势：**2 秒内连续点击 3 下**切换一次（图一 → 图二；再连点 3 下切回图一），与气泡开关无关。
 // 只对内置默认角色生效；用户自定义角色 / 动态角色不参与切换。
 var mimoFormAlt = false
-var mimoLastClickAt = 0
+var mimoClickBusyUntil = 0
 // MIMO：两种形态默认角色大小相同，且都比基础大 3 档（只作用于角色图片，气泡不放大）。
 function applyArtScale() {
   try {

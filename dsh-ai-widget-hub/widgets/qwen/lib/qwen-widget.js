@@ -18815,7 +18815,7 @@ function bubblePreviewInto(container, mods, widthPx, opts) {
 // 手势：**2 秒内连续点击 3 下**切换一次（形态1 ↔ 形态2）；第二形态默认大小比形态1大 3 档（0.3 scale）。
 // 只对内置默认角色生效；用户自定义角色 / 动态角色不参与切换。
 var qwenFormAlt = false
-var qwenLastClickAt = 0
+var qwenClickBusyUntil = 0
 var QWEN_FORM2_EXTRA = 0.3
 function qwenToggleForm() {
   try {
@@ -18846,10 +18846,19 @@ function applyArtScale() {
 }
 function qwenClick() {
   try {
-    // 点击冷却：上一次点击动画/音效未播放完前，忽略新的点击（防连点抢动画 / 叠音）
+    // 点击冷却（每只挂件独立计时）：上一次点击的「按压回弹动画 + 按压/松开音效」全部播放完之前，
+    // 当前这只 AI娘忽略新的点击（不影响其它 AI娘各自计时）。
     var qwenNow = Date.now()
-    if (qwenLastClickAt && qwenNow - qwenLastClickAt < 700) return
-    qwenLastClickAt = qwenNow
+    if (qwenClickBusyUntil && qwenNow < qwenClickBusyUntil) return
+    var qwenBusyMs = 420 // 按压→回弹动画约 0.22s，留余量
+    try {
+      var qwenPressDur = pressAudio && isFinite(pressAudio.duration) ? pressAudio.duration : 0
+      var qwenReleaseDur = releaseAudio && isFinite(releaseAudio.duration) ? releaseAudio.duration : 0
+      var qwenSoundMs = (qwenPressDur + qwenReleaseDur) * 1000 + 150 // 按压音 + 松开音 + 衔接余量
+      if (qwenSoundMs > qwenBusyMs) qwenBusyMs = qwenSoundMs
+    } catch (err) {}
+    if (qwenBusyMs < 650) qwenBusyMs = 650
+    qwenClickBusyUntil = qwenNow + qwenBusyMs
     if (!bubbleOn) return
     if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert')) return // 消耗/预警提醒期间点千问娘不动作(点泡泡才关)
     if (!bubbleShown) {

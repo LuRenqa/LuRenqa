@@ -1,6 +1,6 @@
 {
   "name": "dsh-ai-widget-hub",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "description": "DSH 左侧栏 AI娘挂件中心（自包含版）：一个插件内置全部 9 只余额桌宠（DeepSeek/Gemini/Kimi/GLM/千问/Grok/Claude/GPT/MIMO），9 只均支持双形态；无需再安装其它挂件插件，左侧栏统一开关。",
   "type": "module",
   "main": "index.js",

@@ -60,6 +60,9 @@
 16. **v0.2.11**：① 去掉连点三下切换，改为菜单行「角色形态」+ `<前缀>-roleimport` 按钮（inline 专属主题色），
     `ToggleForm` 后同步按钮文案「形态：状态1/2」；② 角色点击入口加 700ms 冷却（`<id>LastClickAt`）；
     ③ 状态2 的 art-scale 只作用于角色 `img`；④ MIMO 两种形态都应用 `(state.scale+0.3)/state.scale` 的 art-scale。
+17. **v0.2.12 点击冷却动态化**：每只挂件维护 `ClickBusyUntil`；点击时按
+    `max(420ms 动画, pressAudio.duration + releaseAudio.duration + 150ms)` 计算占用时长（下限 650ms），
+    冷却内该挂件忽略新点击；计时变量在各自 script 内，互不影响。
 
 ## 0. 关键结论（已由 Lead 实测/查证，不要再自行推翻）
 
