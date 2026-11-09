@@ -368,6 +368,7 @@ export default {
           accent: widget.accent,
           size: 340,
           balanceUrl: DESKTOP_ROUTE_BASE() + '/dsh-' + widget.id + '/balance.json',
+          apiUrl: DESKTOP_ROUTE_BASE() + '/dsh-ai-hub/desktop/toggle',
           sound1: path.join(assetsDir, 'Ya1.mp3'),
         })
       }

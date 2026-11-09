@@ -122,6 +122,31 @@ function Set-PetImage($st, [string]$path) {
   } catch {}
 }
 
+function Toggle-PetForm($st) {
+  try {
+    $target = if ($st.Form2) { [string]$st.Cfg.img1 } else { [string]$st.Cfg.img2 }
+    Set-PetImage $st $target
+    Bounce $st
+  } catch {}
+}
+
+function Disable-Desktop($st) {
+  $ok = $false
+  try {
+    $api = [string]$st.Cfg.apiUrl
+    if (-not [string]::IsNullOrWhiteSpace($api)) {
+      $body = (@{ id = [string]$st.Cfg.id; enabled = $false } | ConvertTo-Json -Compress)
+      Invoke-WebRequest -Uri $api -Method POST -WebSession $script:Session -ContentType 'application/json' -Body $body -UseBasicParsing -TimeoutSec 6 | Out-Null
+      $ok = $true
+    }
+  } catch {}
+  if ($ok) {
+    try { $st.Win.Close() } catch {}
+  } else {
+    try { $st.Text.Text = '关闭桌面失败，请到 DSH 面板操作'; $st.Bubble.Visibility = [System.Windows.Visibility]::Visible } catch {}
+  }
+}
+
 function New-Pet($cfg) {
   $id = [string]$cfg.id
   $size = 340.0
@@ -175,6 +200,35 @@ function New-Pet($cfg) {
   $bubble.Child = $txt
   $grid.Children.Add($bubble) | Out-Null
 
+  # 左上角常驻两个小按钮：切换状态1/2、关闭桌面显示
+  $bar = New-Object System.Windows.Controls.StackPanel
+  $bar.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+  $bar.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
+  $bar.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
+  $bar.Margin = New-Object System.Windows.Thickness(6, 6, 0, 0)
+  $btnForm = New-Object System.Windows.Controls.Button
+  $btnForm.Content = '切换形态'
+  $btnForm.FontSize = 11
+  $btnForm.Padding = New-Object System.Windows.Thickness(6, 2, 6, 2)
+  $btnForm.Margin = New-Object System.Windows.Thickness(0, 0, 4, 0)
+  $btnForm.Background = New-Brush ([string]$cfg.accent) 0.92
+  $btnForm.Foreground = New-Brush '#ffffff' 1
+  $btnForm.BorderThickness = New-Object System.Windows.Thickness(0)
+  $btnForm.Tag = $st
+  $btnForm.add_Click({ param($sender, $e) try { Toggle-PetForm $sender.Tag } catch {} })
+  $bar.Children.Add($btnForm) | Out-Null
+  $btnDesk = New-Object System.Windows.Controls.Button
+  $btnDesk.Content = '关闭桌面'
+  $btnDesk.FontSize = 11
+  $btnDesk.Padding = New-Object System.Windows.Thickness(6, 2, 6, 2)
+  $btnDesk.Background = New-Brush '#111827' 0.85
+  $btnDesk.Foreground = New-Brush '#ffffff' 1
+  $btnDesk.BorderThickness = New-Object System.Windows.Thickness(0)
+  $btnDesk.Tag = $st
+  $btnDesk.add_Click({ param($sender, $e) try { Disable-Desktop $sender.Tag } catch {} })
+  $bar.Children.Add($btnDesk) | Out-Null
+  $grid.Children.Add($bar) | Out-Null
+
   $win.Content = $grid
 
   $st = @{ Win = $win; Img = $img; Scale = $scale; Bubble = $bubble; Text = $txt; Cfg = $cfg; Size = $size; BubbleTimer = $null; Drag = $null; Moved = $false; Form2 = $false }
@@ -213,8 +267,17 @@ function New-Pet($cfg) {
       $s2 = $sender.Tag
       if (-not $s2.Drag) { return }
       $p = $sender.PointToScreen($e.GetPosition($sender))
-      $dx = $p.X - $s2.Drag.sx
-      $dy = $p.Y - $s2.Drag.sy
+      # PointToScreen 是物理像素，Window.Left/Top 是 DIP：用 WPF 的 TransformFromDevice 做换算，
+      # 否则 150% 缩放下桌宠会比鼠标快 1.5 倍。
+      $dx = ($p.X - $s2.Drag.sx)
+      $dy = ($p.Y - $s2.Drag.sy)
+      try {
+        $src = [System.Windows.PresentationSource]::FromVisual($sender)
+        $m = $src.CompositionTarget.TransformFromDevice
+        $dip = $m.Transform((New-Object System.Windows.Point($dx, $dy)))
+        $dx = $dip.X
+        $dy = $dip.Y
+      } catch {}
       if ([math]::Abs($dx) + [math]::Abs($dy) -gt 5) { $s2.Moved = $true }
       if ($s2.Moved) { $sender.Left = $s2.Drag.wx + $dx; $sender.Top = $s2.Drag.wy + $dy }
     } catch {}
@@ -268,6 +331,12 @@ function New-Pet($cfg) {
   [void]$menu.Items.Add($miSmall)
 
   $miClose = New-Object System.Windows.Controls.MenuItem
+  $miDesk = New-Object System.Windows.Controls.MenuItem
+  $miDesk.Header = '关闭桌面显示'
+  $miDesk.Tag = $st
+  $miDesk.add_Click({ param($sender, $e) try { Disable-Desktop $sender.Tag } catch {} })
+  [void]$menu.Items.Add($miDesk)
+
   $miClose.Header = '关闭窗口'
   $miClose.Tag = $st
   $miClose.add_Click({ param($sender, $e) try { $sender.Tag.Win.Close() } catch {} })
