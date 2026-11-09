@@ -65,6 +65,8 @@
     冷却内该挂件忽略新点击；计时变量在各自 script 内，互不影响。
 18. **v0.2.13**：Client 面板按 `widgets.enabled === true` 统计数量，`enabledCount >= 4` 时在 header 渲染
     `.dshaihub-memwarn` 警告条（「开启过多AI娘可能引起卡顿，请合理规划内存。」）。
+23. **v0.2.18**：Client 修复 WidgetCard 未定义 accent；Host 恢复 WPF 桌面助手（`assets/desktop-pet.ps1`，写配置+启动 powershell）；
+    助手窗口 W=size*1.20/H=size*1.18，气泡 Right/Bottom + Margin 贴角色头顶；gate 隐藏 DSH 内实例保持不变。
 22. **v0.2.17 桌面舞台**：`GET /dsh-ai-hub/desktop` 返回舞台页（加载真实 widget.js，`translate` 排布）；
     Host `syncDesktopHelper` 改为用 Edge/Chrome `--app` 打开带 token 的 DSH 首页（客户端引导重定向到舞台页，完成登录 cookie）；
     Client gate 增加 `html.dshaihub-desk-<id>` 隐藏 DSH 内实例；每只卡片新增「桌面」小按钮。

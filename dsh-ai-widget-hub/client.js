@@ -672,7 +672,7 @@ window.__ModuleLoader__.load({
             className: 'dshaihub-deskBtn' + (widget.desktop === true ? ' dshaihub-deskBtnOn' : ''),
             title: widget.desktop === true ? '取消桌面显示' : '显示到桌面',
             disabled: !installed || !enabled || busy,
-            style: { borderColor: widget.desktop === true ? accent : undefined, color: widget.desktop === true ? accent : undefined },
+            style: { borderColor: widget.desktop === true ? (widget.accent || '#888') : undefined, color: widget.desktop === true ? (widget.accent || '#888') : undefined },
             onClick: function () { props.onDesktop(widget, widget.desktop !== true); },
           }, '桌面'),
           h(ToggleSwitch, {
@@ -1307,14 +1307,6 @@ window.__ModuleLoader__.load({
     }
 
     function apply(ctx) {
-      // 桌面舞台引导：先用带 token 的 URL 打开 DSH 完成登录，再跳到只含挂件的舞台页
-try {
-  var bootParams = new URLSearchParams(window.location.search);
-  if (bootParams.get('dsh-desktop-stage') === '1') {
-    window.location.replace('/dsh-ai-hub/desktop');
-    return;
-  }
-} catch (err) {}
 
       // 整个挂载过程兜底：Client 半出问题不能把宿主页面其它部分带崩
       try {
