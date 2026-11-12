@@ -22782,14 +22782,31 @@ setTimeout(function () {
   setInterval(function () {
     try { if (document.hidden) return } catch (err) {}
     pollLastTurn(); pollWaitState()
+    xiaokePollHubRecenter()
   }, 3000)
 }, Math.floor(Math.random() * 3000))
 }
 // 主界面检测通过（或稍后由 MutationObserver 检测到）后执行挂件初始化；非主界面不启动
 try { dshxkTryStart(true) } catch (err) {}
 // v0.2.20：面板「重新居中（防卡死）」→ 把这只挂件拉回屏幕正中央（并关闭吸附，避免立刻又被吸回边缘）
+// 防卡死兜底（HTTP）：轮询 Host state 的 recenterAt，即使所有前端事件/共享变量都没送达也能居中
+var xiaokeLastHubRecenterAt = 0
+function xiaokePollHubRecenter() {
+  try {
+    fetch('/dsh-ai-hub/state', { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (r) { return r.json() })
+      .then(function (d) {
+        var at = d && d.recenterAt
+        if (at && at !== xiaokeLastHubRecenterAt) {
+          xiaokeLastHubRecenterAt = at
+          xiaokeRecenter()
+        }
+      }).catch(function () {})
+  } catch (err) {}
+}
 function xiaokeRecenter() {
   try {
+    try { window.__dshRecenterHits = (window.__dshRecenterHits || 0) + 1 } catch (e0) {}
     var vp = viewport()
     var w2 = root.offsetWidth || root.getBoundingClientRect().width || 0
     var h2 = root.offsetHeight || root.getBoundingClientRect().height || 0
@@ -22801,4 +22818,16 @@ function xiaokeRecenter() {
   } catch (err) {}
 }
 try { window.addEventListener('dsh-ai-hub:recenter', xiaokeRecenter) } catch (err) {}
+// 兜底：即使自定义事件没送达（不同作用域/加载时序），也通过共享变量轮询触发重新居中
+var xiaokeLastRecenterAt = 0
+function xiaokeRecenterPoll() {
+  try {
+    var at = window.__dshRecenterAt || 0
+    if (at && at !== xiaokeLastRecenterAt) {
+      xiaokeLastRecenterAt = at
+      xiaokeRecenter()
+    }
+  } catch (err) {}
+}
+setInterval(xiaokeRecenterPoll, 1500)
 })()

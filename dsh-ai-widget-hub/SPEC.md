@@ -65,6 +65,10 @@
     冷却内该挂件忽略新点击；计时变量在各自 script 内，互不影响。
 18. **v0.2.13**：Client 面板按 `widgets.enabled === true` 统计数量，`enabledCount >= 4` 时在 header 渲染
     `.dshaihub-memwarn` 警告条（「开启过多AI娘可能引起卡顿，请合理规划内存。」）。
+30. **v0.3.1**：① buildState 增加 `recenterAt`，widget 3s 轮询 `/dsh-ai-hub/state` 触发 `<id>Recenter()`；
+    桌面配置带 `recenterAt`，助手 Sync-Config 检测变化后把全部宠物窗口移到 WorkArea 中央；
+    ② 9 只 widget host 的 `publicBalance` 接入 `hubSharedToday()`，共享 `$DSH_HOME/dsh-ai-widget-hub-today-usage.json`
+    （owner 先写、后开启读同一值，`byId` 保留每只记录）。
 29. **v0.3.0（发布）**：v0.2.4 ~ v0.2.23 的全部改动合并发布；hub 版本号 0.3.0，打 tag `v0.3.0` 并推送 GitHub。
 28. **v0.2.23**：Host off 文件读取去 BOM + id trim；助手 `.off` 写 ASCII；Client POLL_MS 12000→4000。
 27. **v0.2.22**：助手 `Disable-Desktop` 改为写 `<pos>.off` + 立即关窗；Host `desktopOffTimer` 1.2s 轮询同步状态；

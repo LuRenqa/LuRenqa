@@ -353,6 +353,7 @@ export default {
     // —— 桌面宠物：启动/停止随插件分发的 PowerShell 助手（透明置顶窗口）——
     // —— 桌面宠物：启动/停止随插件分发的 PowerShell 助手（透明置顶窗口）——
     let desktopChild = null
+    let desktopRecenterAt = 0
     function desktopPets() {
       const pets = []
       for (const widget of CATALOG) {
@@ -394,7 +395,7 @@ export default {
     }
     function writeDesktopConfig() {
       const pets = desktopPets()
-      const doc = { version: 1, updatedAt: Date.now(), authUrl: desktopAuthUrl(), pets }
+      const doc = { version: 1, updatedAt: Date.now(), authUrl: desktopAuthUrl(), recenterAt: desktopRecenterAt, pets }
       fs.mkdirSync(path.dirname(DESKTOP_CONFIG_FILE), { recursive: true })
       const tmp = DESKTOP_CONFIG_FILE + '.tmp-' + process.pid + '-' + Date.now()
       fs.writeFileSync(tmp, JSON.stringify(doc, null, 2) + '\n', 'utf8')
@@ -544,6 +545,7 @@ export default {
           return {
             ok: true,
             bundled: true,
+            recenterAt: desktopRecenterAt,
             widgets: CATALOG.map((widget) => ({
               id: widget.id,
               title: widget.title,
@@ -833,8 +835,9 @@ export default {
             if (method !== 'POST') { sendMethodNotAllowed(res, 'POST'); return }
             try {
               // 桌面宠物：停掉助手 → 删除位置记忆 → 重新启动（默认放到屏幕中央）
-              stopDesktopHelper()
+              desktopRecenterAt = Date.now()
               try { fs.rmSync(DESKTOP_POS_FILE, { force: true }) } catch (err) {}
+              writeDesktopConfig()
               syncDesktopHelper()
               sendJson(res, 200, { ok: true })
             } catch (err) {

@@ -11,6 +11,7 @@ $script:Pets = @{}
 $script:Players = New-Object System.Collections.ArrayList
 $script:Session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
 $script:ConfigMtime = [datetime]::MinValue
+$script:LastRecenterAt = 0
 $script:PidFile = $PosFile + '.pid'
 $script:Mutex = $null
 try {
@@ -414,6 +415,24 @@ function Sync-Config() {
       if ($script:Pets.ContainsKey($id)) { $script:Pets[$id].Cfg = $wanted[$id] }
       else { New-Pet $wanted[$id] | Out-Null }
     }
+    try {
+      $recAt = 0
+      try { $recAt = [double]$cfg.recenterAt } catch {}
+      if ($recAt -gt $script:LastRecenterAt) {
+        $script:LastRecenterAt = $recAt
+        $wa2 = [System.Windows.SystemParameters]::WorkArea
+        $idx2 = 0
+        foreach ($k2 in @($script:Pets.Keys)) {
+          $st2 = $script:Pets[$k2]
+          if (-not $st2) { continue }
+          $st2.Win.Left = [double]($wa2.Left + ($wa2.Width - $st2.Win.Width) / 2)
+          $st2.Win.Top = [double]($wa2.Top + ($wa2.Height - $st2.Win.Height) / 2 + ($idx2 * 30))
+          $script:Pos[[string]$k2] = @([double]$st2.Win.Left, [double]$st2.Win.Top)
+          $idx2 += 1
+        }
+        Save-Positions
+      }
+    } catch {}
     $script:IdleStarted = [datetime]::Now
   } catch {}
 }

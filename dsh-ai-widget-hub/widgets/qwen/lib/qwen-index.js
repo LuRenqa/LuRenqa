@@ -489,6 +489,31 @@ const SIZE_FILE_CANDIDATES = [
   DATA_CANDIDATES_TAIL[1] + '.dshqw-size.json',
 ]
 // Usage ledger file (千问娘记账 mode): same policy as the size file.
+// 统一「今日消耗」：所有 AI娘共用同一个当日文件，先开启的写入 owner 值，后开启的直接读同一个值
+const HUB_TODAY_USAGE_FILE = path.join(DSH_HOME, 'dsh-ai-widget-hub-today-usage.json')
+function hubTodayUsageKey() {
+  const d = new Date(Date.now() + 8 * 3600 * 1000)
+  return d.toISOString().slice(0, 10)
+}
+function hubSharedToday(amount, currency, id) {
+  try {
+    const day = hubTodayUsageKey()
+    let doc = null
+    try { doc = JSON.parse(fs.readFileSync(HUB_TODAY_USAGE_FILE, 'utf8')) } catch (err) {}
+    if (!doc || typeof doc !== 'object' || doc.date !== day) doc = { date: day, owner: '', amount: null, currency: '', byId: {} }
+    if (!doc.byId || typeof doc.byId !== 'object') doc.byId = {}
+    if (id) doc.byId[id] = { amount: (typeof amount === 'number' && isFinite(amount)) ? amount : null, currency: currency || '', at: Date.now() }
+    if (typeof amount === 'number' && isFinite(amount)) {
+      if (!doc.owner) { doc.owner = id || ''; doc.amount = amount; doc.currency = currency || '' }
+      else if (doc.owner === id) { doc.amount = amount; doc.currency = currency || doc.currency || '' }
+    }
+    try { fs.mkdirSync(path.dirname(HUB_TODAY_USAGE_FILE), { recursive: true }) } catch (err) {}
+    try { fs.writeFileSync(HUB_TODAY_USAGE_FILE, JSON.stringify(doc, null, 2), 'utf8') } catch (err) {}
+    if (typeof doc.amount === 'number') return { amount: doc.amount, currency: doc.currency || currency }
+  } catch (err) {}
+  return { amount: amount, currency: currency }
+}
+
 const USAGE_FILE_CANDIDATES = [
   path.join(DSH_HOME, '.dshqw-usage.json'),
   path.join(DSH_HOME, 'profiles', 'web', '.dshqw-usage.json'),
@@ -3133,13 +3158,14 @@ export default {
       const { accountTag, ...visible } = payload
       const led = readUsageLedger()
       const summary = daySummary(led, todayKey())
+      const hubToday = hubSharedToday(summary.amount, summary.currency, 'qwen')
       const nowSec = Math.floor(Date.now() / 1000)
       return {
         ...visible, version: '0.4.3', versionLabel: VERSION_LABEL, isPeak: isPeakTime(nowSec),
         // 峰谷切换点与节假日清单：前端倒计时要与宿主同源（否则法定节假日会算错切换点）
         peakNextChangeAt: nextPeakChangeAt(nowSec),
         peakHolidays: HOLIDAY_VALLEY_LIST,
-        todayUsage: summary.amount, todayUsageCurrency: summary.currency,
+        todayUsage: hubToday.amount, todayUsageCurrency: hubToday.currency || summary.currency,
         usageSource: summary.source, usageLabel: summary.label, usageMode: 'ledger',
         accounting: balanceSummary(led, todayKey()),
       }

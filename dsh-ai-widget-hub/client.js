@@ -911,13 +911,26 @@ window.__ModuleLoader__.load({
 
       /** 防卡死：把所有开启的 AI娘拉回屏幕正中央（DSH 内实例 + 桌面宠物一起重置）。 */
       function recenterAll() {
+        try {
+          window.__dshRecenterHits = 0;
+          window.__dshRecenterAt = Date.now();
+        } catch (err) {}
         try { window.dispatchEvent(new CustomEvent('dsh-ai-hub:recenter')); } catch (err) {}
         fetch(API_RECENTER, { method: 'POST', credentials: 'same-origin', cache: 'no-store' })
           .then(function (r) { return r.text() })
           .then(function () {
             if (!aliveRef.current) return;
-            setNotice({ kind: 'ok', text: '已把所有开启的 AI娘移到屏幕中央' });
             load({ silent: true });
+            window.setTimeout(function () {
+              if (!aliveRef.current) return;
+              var hits = 0;
+              try { hits = window.__dshRecenterHits || 0; } catch (err) {}
+              if (hits > 0) {
+                setNotice({ kind: 'ok', text: '已重新居中 ' + hits + ' 只 AI娘（桌面宠物也已复位）' });
+              } else {
+                setNotice({ kind: 'warn', text: '没有 AI娘响应重新居中，请刷新页面后再试（或把这条提示发给作者）' });
+              }
+            }, 600);
           }).catch(function (err) {
             if (!aliveRef.current) return;
             setNotice({ kind: 'error', text: '重新居中失败：' + errorMessage(err) });
